@@ -84,10 +84,10 @@
 		{:else if error}
 			<p class="has-text-danger">{error}</p>
 		{:else if completed}
-			<div class="has-text-centered mt-6">
-				<h2 class="title is-3">🎉 Assessment Complete!</h2>
+			<div class="assessment-complete">
+				<h2 class="title">🎉 Assessment Complete!</h2>
 				<p class="subtitle">Your responses have been recorded.</p>
-				<a href="/dashboard" class="button is-primary mt-4">Return to Dashboard</a>
+				<a href="/dashboard" class="button is-primary">Return to Dashboard</a>
 			</div>
 		{:else if currentQuestion}
 			<div class="column">
