@@ -6,9 +6,9 @@
 	<div class="overlay"></div>
 
 	<div class="content">
-		<h1 class="title mb-4">Welcome to <span>Kaizen</span></h1>
+		<h1 class="title">Welcome to <span>Kaizen</span></h1>
 		<p class="subtitle">
-			Kaizen is a philosophy of continuous improvement — making small, meaningful changes every day
+			Kaizen is a philosophy of continuous improvement — <br>making small, meaningful changes every day<br>
 			to enhance learning, performance, and mastery.
 		</p>
 		<a href="/login" class="cta">Get Started</a>
@@ -63,7 +63,7 @@
         font-weight: 700;
         font-size: 3rem;
         line-height: 1.2;
-        margin-bottom: 1rem;
+        margin-bottom: 3rem !important;
 				color: white;
     }
 

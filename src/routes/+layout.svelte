@@ -43,7 +43,7 @@
 		});
 		if (typeof window !== 'undefined') {
 			localStorage.removeItem('user');
-			window.location.href = '/login';
+			window.location.href = '/';
 		}
 	}
 </script>
