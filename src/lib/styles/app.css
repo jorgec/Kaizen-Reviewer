@@ -1,0 +1,350 @@
+@import "bulma/css/bulma.min.css";
+@import "purpley.css";
+
+/* ---------- Base Palette ---------- */
+:root {
+    /* ---------- Mastery Gradient Scale ---------- */
+    --mastery-0:  #e76f51; /* poor */
+    --mastery-25: #f4a261; /* low */
+    --mastery-50: #e9c46a; /* fair */
+    --mastery-75: #2a9d8f; /* good */
+    --mastery-100:#264653; /* excellent */
+
+    /* ---------- Hover Colors ---------- */
+    --hover-bg: #a8dadc;
+    --hover-text: #1d3557;
+}
+
+/* --- Navbar Styling --- */
+nav.navbar {
+    background-color: #d3d3d3;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+}
+
+nav.navbar.shrink {
+    background-color: rgba(211, 211, 211, 0.75);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand-link {
+    text-decoration: none;
+    color: var(--color-text-primary);
+    transition: color 0.2s ease;
+}
+
+.navbar-brand-link:hover {
+    color: var(--color-primary-hover);
+}
+
+.user-display {
+    color: #444;
+}
+
+@media (max-width: 768px) {
+    nav.navbar {
+        padding: 0.4rem 1rem !important;
+    }
+    nav.navbar.shrink {
+        padding: 0.25rem 1rem !important;
+    }
+    h1.title.is-5 {
+        font-size: 1.1rem;
+    }
+}
+
+.title, .subtitle {
+    line-height: 3em;
+}
+
+/* ---------- Tables ---------- */
+.table {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.table th {
+    background-color: var(--color-input-bg);
+    text-align: left;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+.table td {
+    border: none;
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    color: var(--color-text-primary);
+}
+/* ============================================================
+   Typography & Readability Enhancements
+   ============================================================ */
+
+/* --- Global Type Adjustments --- */
+html, body {
+    font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 1.05rem;              /* slightly larger base */
+    line-height: 1.7;                /* more breathing room */
+    letter-spacing: 0.015em;         /* subtle tracking for better readability */
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    color: var(--color-text-primary);
+}
+
+/* --- Headings --- */
+h1, .title.is-1 { font-size: 2.2rem; line-height: 1.3; letter-spacing: -0.01em; }
+h2, .title.is-2 { font-size: 1.9rem; line-height: 1.35; letter-spacing: -0.01em; }
+h3, .title.is-3 { font-size: 1.6rem; line-height: 1.4; }
+h4, .title.is-4 { font-size: 1.4rem; line-height: 1.45; }
+h5, .title.is-5 { font-size: 1.2rem; line-height: 1.5; }
+h6, .title.is-6 { font-size: 1rem;  line-height: 1.55; }
+
+.subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+}
+
+/* --- Table Text --- */
+.table th,
+.table td,
+.results-table th,
+.results-table td {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+}
+
+/* Emphasize header legibility */
+.table th {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+/* --- Summary & Question Cards --- */
+.summary-card p,
+.question-card p,
+.card-content p {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    letter-spacing: 0.015em;
+}
+
+.summary-card .subtitle.is-4 {
+    font-size: 1.4rem;
+    line-height: 1.5;
+}
+
+/* --- Buttons --- */
+.button {
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.015em;
+    line-height: 1.4;
+    padding: 0.85rem 1.25rem;
+    border-radius: var(--radius-base);
+}
+
+/* --- Inputs --- */
+.input {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+    padding: 0.9rem 1rem;
+}
+
+/* --- Tags & Small Text --- */
+.tag {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+}
+
+/* --- Mobile Optimization --- */
+@media (max-width: 768px) {
+    html, body {
+        font-size: 1.15rem; /* Larger for small screens */
+        line-height: 1.8;
+    }
+
+    .title.is-4,
+    .subtitle {
+        font-size: 1.3rem;
+        line-height: 1.6;
+    }
+
+    .table th, .table td {
+        font-size: 1.1rem;
+        line-height: 1.65;
+        padding: 1rem 0.75rem;
+    }
+
+    .button {
+        font-size: 1.1rem;
+        padding: 1rem 1.5rem;
+    }
+
+    .input {
+        font-size: 1.1rem;
+        padding: 1rem;
+    }
+}
+
+/* --- Desktop Scaling --- */
+@media (min-width: 1200px) {
+    html, body {
+        font-size: 1.1rem;
+        line-height: 1.7;
+    }
+
+    .table th, .table td {
+        font-size: 1.1rem;
+        line-height: 1.65;
+    }
+
+    .title.is-4 {
+        font-size: 1.6rem;
+    }
+}
+
+/* --- Accessibility & Contrast Tweaks --- */
+.m-row td,
+.results-table td {
+    text-shadow: rgba(255,255,255,0.1) 0 1px 1px;
+}
+
+.m-row:hover td,
+.results-table tr:hover td {
+    text-shadow: none;
+}
+
+/* --- Improved visual spacing --- */
+.section, .container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+/* ---------- Dynamic row backgrounds by mastery ---------- */
+.m-row {
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Mastery color bands */
+.m-low   { background: var(--mastery-0);   color: var(--color-text-primary); }
+.m-fair  { background: var(--mastery-25);  color: var(--color-text-primary); }
+.m-good  { background: var(--mastery-50);  color: var(--color-text-primary); }
+.m-high  { background: var(--mastery-75);  color: #fff; }
+.m-excel { background: var(--mastery-100); color: #fff; }
+
+/* Neutral rows for null / missing values */
+.m-neutral {
+    background: #ececec;
+    color: var(--color-text-primary);
+}
+
+/* ---------- Hover behavior ---------- */
+/* When hovering any table row (including mastery rows), override background & text */
+.table.is-hoverable tbody tr:hover,
+.table.is-hoverable.is-striped tbody tr:hover,
+.m-row:hover {
+    background-color: var(--hover-bg) !important;
+    color: var(--hover-text) !important;
+    filter: none;
+}
+
+/* Ensure hover applies to cells consistently */
+.table.is-hoverable tbody tr:hover td,
+.table.is-hoverable tbody tr:hover th,
+.m-row:hover td,
+.m-row:hover th {
+    color: var(--hover-text) !important;
+}
+
+/* ---------- Smooth transitions for readability ---------- */
+.aptitude-table th,
+.aptitude-table td {
+    transition: background-color 0.3s ease, color 0.3s ease;
+    color: var(--color-text-primary);
+}
+
+/* ---------- Accessibility and text balance ---------- */
+.m-row td {
+    font-weight: 500;
+}
+
+/* Keep hover focus clear without flashing lighter colors */
+.table.is-hoverable tbody tr:not(.is-selected):hover {
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Subtle spacing for visual separation */
+.table {
+    border-collapse: separate;
+    border-spacing: 0 6px;
+}
+
+.question-card {
+    border-radius: var(--radius-lg);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.summary-card {
+    border-radius: var(--radius-lg);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    background-color: var(--color-surface);
+}
+
+.results-table th {
+    background-color: var(--color-input-bg);
+    color: var(--color-text-primary);
+    text-align: left;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+.results-table td {
+    padding: 0.85rem 1rem;
+    vertical-align: top;
+    border: none;
+    color: var(--color-text-primary) !important;
+}
+
+tr.correct {
+    background-color: rgba(42, 157, 143, 0.15);
+}
+
+tr.incorrect {
+    background-color: rgba(231, 111, 81, 0.12);
+}
+
+tr.correct:hover,
+tr.incorrect:hover {
+    background-color: #a8dadc;
+    color: #1d3557;
+    transition: background-color 0.2s ease;
+}
+
+.user-answer {
+    display: inline-block;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-base);
+    background: rgba(0, 0, 0, 0.05);
+    font-weight: 500;
+}
+
+/* Responsive table tweaks */
+@media (max-width: 768px) {
+    .table th, .table td {
+        padding: 1rem 0.75rem;
+        font-size: 1.05rem;
+    }
+    .table.is-fullwidth {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

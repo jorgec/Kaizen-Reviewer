@@ -1,0 +1,103 @@
+@import "bulma/css/bulma.min.css";
+
+/* ---------- Base Palette ---------- */
+:root {
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text-primary: #1e1e24;
+    --color-error: #e85f5c;
+    --color-input-bg: #f2fdff;
+    --color-primary: #9ad4d6;
+    --color-primary-hover: #101935;
+    --color-outline: #d8d8d8;
+
+    --radius-base: 10px;
+    --radius-lg: 14px;
+    --transition: 0.25s ease;
+}
+
+/* ---------- Global ---------- */
+html, body {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: 'Inter', 'Roboto', sans-serif;
+    height: 100%;
+    line-height: 1.5;
+}
+
+/* ---------- Headings ---------- */
+.title, .subtitle {
+    color: var(--color-text-primary);
+}
+
+.subtitle {
+    opacity: 0.7;
+}
+
+/* ---------- Inputs ---------- */
+.input {
+    background-color: var(--color-input-bg);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-base);
+    padding: 0.8rem 1rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(154, 212, 214, 0.4);
+    outline: none;
+}
+
+/* ---------- Buttons ---------- */
+.button.is-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-base);
+    border: none;
+    transition: background-color var(--transition), color var(--transition);
+    font-weight: 600;
+}
+
+.button.is-primary:hover {
+    background-color: var(--color-primary-hover);
+    color: #fff;
+}
+
+.button.is-light {
+    background-color: #f5f5f5;
+    border-radius: var(--radius-base);
+}
+
+/* ---------- Cards ---------- */
+.card {
+    border-radius: var(--radius-lg);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+    background-color: var(--color-surface);
+    transition: box-shadow var(--transition), transform var(--transition);
+    padding: 2rem;
+}
+
+.card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* ---------- Error messages ---------- */
+.has-text-danger {
+    color: var(--color-error) !important;
+}
+
+/* ---------- Helpers ---------- */
+.full-height {
+    min-height: 100vh;
+}
+
+.centered {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.mb-4 { margin-bottom: 1rem !important; }
+.mt-6 { margin-top: 3rem !important; }
