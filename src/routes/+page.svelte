@@ -8,7 +8,7 @@
 	<div class="content">
 		<h1 class="title">Welcome to <span>Kaizen</span></h1>
 		<p class="subtitle">
-			Kaizen is a philosophy of continuous improvement — <br>making small, meaningful changes every day<br>
+			Kaizen is a philosophy of continuous improvement — <br>making small, meaningful changes every day
 			to enhance learning, performance, and mastery.
 		</p>
 		<a href="/login" class="cta">Get Started</a>
