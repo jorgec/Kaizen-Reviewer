@@ -65,7 +65,7 @@
 				<span class="has-text-weight-medium user-display">
 					{user.display_name}
 				</span>
-				<button class="button is-light ml-3" on:click={logout}>Log out</button>
+				<button class="button is-light is-small ml-3" on:click={logout}>Log out</button>
 			</div>
 		{:else}
 			<a href="/login" class="button is-primary">Login</a>
