@@ -15,6 +15,7 @@
 	let activeSortDir: 'asc' | 'desc' = 'desc';
 	let completedSortBy: 'date' | 'title' | 'type' | 'score' = 'date';
 	let completedSortDir: 'asc' | 'desc' = 'desc';
+
 	// Toggle sorting direction for a section
 	function toggleSort(type: 'active' | 'completed') {
 		if (type === 'active') {
@@ -79,7 +80,6 @@
 
 	let loading = true;
 	let error = '';
-
 
 
 	let showCustomModal = false;
@@ -259,7 +259,7 @@
 			if (!instanceId) throw new Error('No instance_id returned.');
 
 			showCustomModal = false;
-			alert('Assessment created successfully!');
+			// alert('Assessment created successfully!');
 
 			goto(form.type === 'prompt' ? `/prompt/${instanceId}` : `/assessment/${instanceId}`);
 		} catch (err: any) {
@@ -271,17 +271,35 @@
 </script>
 
 <section class="section">
-	<div class="container">
-		<h2 class="title is-4 mb-4">Kaizen Dashboard</h2>
+	<div class="container py-0">
+		<div class="assessment-grid mb-5">
+			<button type="button" class="assessment-tile prompt" on:click={startPrompt}>
+				<div class="icon">📋</div>
+				<h3>Daily Prompt</h3>
+				<p>Quick single-question recall exercise</p>
+			</button>
 
-		<div class="buttons are-medium is-flex is-flex-wrap-wrap mb-5">
-			<button class="button is-primary" on:click={startPrompt}>📋 Daily Prompt</button>
-			<button class="button is-primary" on:click={startShortQuiz}>🧠 Short Quiz</button>
-			<button class="button is-primary" on:click={startAdaptiveQuiz}>📊 Adaptive Quiz</button>
-			<button class="button is-primary" on:click={startMockExam}>🏁 Mock Exam</button>
+			<button type="button" class="assessment-tile short" on:click={startShortQuiz}>
+				<div class="icon">🧠</div>
+				<h3>Short Quiz</h3>
+				<p>10 randomized questions for quick practice</p>
+			</button>
 
+			<button type="button" class="assessment-tile adaptive" on:click={startAdaptiveQuiz}>
+				<div class="icon">📊</div>
+				<h3>Adaptive Quiz</h3>
+				<p>Progressive difficulty based on performance</p>
+			</button>
+
+			<button type="button" class="assessment-tile mock" on:click={startMockExam}>
+				<div class="icon">🏁</div>
+				<h3>Mock Exam</h3>
+				<p>Full-length simulation of real exams</p>
+			</button>
+		</div>
+
+		<div class="sub-buttons">
 			<button class="button is-info" on:click={() => (showCustomModal = true)}>⚙️ Custom Assessment</button>
-
 			<a class="button is-link" href="/analytics/aptitude">📈 View Analytics</a>
 		</div>
 
@@ -300,7 +318,8 @@
 						<option value="type">By Type</option>
 						<option value="score">By Score</option>
 					</select>
-					<button class="button is-small" type="button" aria-label="Toggle sort direction" on:click={() => toggleSort('active')}>
+					<button class="button is-small" type="button" aria-label="Toggle sort direction"
+									on:click={() => toggleSort('active')}>
 						{#if activeSortDir === 'asc'}
 							<span>▲</span>
 						{:else}
@@ -318,13 +337,15 @@
 						<a href={`/assessment/${a.instance_id}`} class="card assessment-card dashboard-card">
 							<div class="card-content">
 								<p class="title is-6 mb-2">{a.title}</p>
-								<p class="subtitle is-7 mb-2">{a.type ? a.type.charAt(0).toUpperCase() + a.type.slice(1) : ''} Assessment</p>
+								<p class="subtitle is-7 mb-2">{a.type ? a.type.charAt(0).toUpperCase() + a.type.slice(1) : ''}
+									Assessment</p>
 								{#if a.description}
 									<p class="is-size-7 mb-2 has-text-grey">{a.description}</p>
 								{/if}
 								<div class="is-flex is-align-items-center is-justify-content-space-between mb-2">
 									<span class="is-size-7 has-text-grey">Status: {a.status}</span>
-									<span class="is-size-7">{a.total_items ? `${a.progress}% (${a.answered_items || 0}/${a.total_items})` : ''}</span>
+									<span
+										class="is-size-7">{a.total_items ? `${a.progress}% (${a.answered_items || 0}/${a.total_items})` : ''}</span>
 								</div>
 								{#if a.total_items}
 									<progress class="progress is-info is-small" value={a.progress} max="100">{a.progress}%</progress>
@@ -359,7 +380,8 @@
 						<option value="type">By Type</option>
 						<option value="score">By Score</option>
 					</select>
-					<button class="button is-small" type="button" aria-label="Toggle sort direction" on:click={() => toggleSort('completed')}>
+					<button class="button is-small" type="button" aria-label="Toggle sort direction"
+									on:click={() => toggleSort('completed')}>
 						{#if completedSortDir === 'asc'}
 							<span>▲</span>
 						{:else}
@@ -375,17 +397,19 @@
 				<div class="dashboard-grid">
 					{#each sortAssessments(completedAssessments, completedSortBy, completedSortDir).slice(0, completedShowCount) as c (c.instance_id)}
 						<a href={`/results/${c.instance_id}`} class="card assessment-card dashboard-card"
-							style="border-left: 4px solid {getMasteryColor(c.score)};"
+							 style="border-left: 4px solid {getMasteryColor(c.score)};"
 						>
 							<div class="card-content">
 								<p class="title is-6 mb-2">{c.title}</p>
-								<p class="subtitle is-7 mb-2">{c.type ? c.type.charAt(0).toUpperCase() + c.type.slice(1) : ''} Assessment</p>
+								<p class="subtitle is-7 mb-2">{c.type ? c.type.charAt(0).toUpperCase() + c.type.slice(1) : ''}
+									Assessment</p>
 								{#if c.description}
 									<p class="is-size-7 mb-2 has-text-grey">{c.description}</p>
 								{/if}
 								<div class="is-flex is-align-items-center is-justify-content-space-between mb-2">
 									<span class="is-size-7">Score: {c.score}%</span>
-									<span class="is-size-7">{c.raw_score !== undefined && c.total_items ? `(${c.raw_score}/${c.total_items})` : ''}</span>
+									<span
+										class="is-size-7">{c.raw_score !== undefined && c.total_items ? `(${c.raw_score}/${c.total_items})` : ''}</span>
 								</div>
 								{#if c.completed_at}
 									<p class="is-size-7 mt-2">Completed: {formatHuman(c.completed_at, { timeZone: 'Asia/Manila' })}</p>
@@ -495,25 +519,29 @@
 {/if}
 
 <style>
-	.list-header {
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		margin-bottom: 0.5rem;
-		gap: 1rem;
-	}
-	.sort-controls {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-	.is-sr-only {
-		position: absolute !important;
-		height: 1px; width: 1px;
-		overflow: hidden;
-		clip: rect(1px, 1px, 1px, 1px);
-		white-space: nowrap;
-	}
+    .list-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        gap: 1rem;
+    }
+
+    .sort-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .is-sr-only {
+        position: absolute !important;
+        height: 1px;
+        width: 1px;
+        overflow: hidden;
+        clip: rect(1px, 1px, 1px, 1px);
+        white-space: nowrap;
+    }
+
     .assessment-card {
         display: block;
         border-radius: var(--radius-lg);
@@ -548,6 +576,89 @@
 
     .dashboard-card {
         min-width: 0;
+    }
+
+    .assessment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .assessment-tile {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 1.75rem 1.25rem;
+        text-align: center;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .assessment-tile:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .assessment-tile .icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .assessment-tile h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--color-text-primary);
+    }
+
+    .assessment-tile p {
+        font-size: 0.95rem;
+        color: #666;
+        line-height: 1.4;
+    }
+
+    /* Sub buttons row */
+    .sub-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .sub-buttons .button {
+        font-size: 0.95rem;
+        padding: 0.6rem 1.2rem;
+    }
+
+    /* Color accents per tile */
+    .assessment-tile.prompt {
+        background: linear-gradient(135deg, #fef6e4, #fff);
+        border-top: 4px solid #f4a261;
+    }
+
+    .assessment-tile.short {
+        background: linear-gradient(135deg, #f1f7ff, #fff);
+        border-top: 4px solid #9ad4d6;
+    }
+
+    .assessment-tile.adaptive {
+        background: linear-gradient(135deg, #f4f9f9, #fff);
+        border-top: 4px solid #2a9d8f;
+    }
+
+    .assessment-tile.mock {
+        background: linear-gradient(135deg, #f9f7ff, #fff);
+        border-top: 4px solid #264653;
+    }
+
+    @media (max-width: 768px) {
+        .assessment-tile {
+            padding: 1.25rem;
+        }
+
+        .assessment-tile h3 {
+            font-size: 1.1rem;
+        }
     }
 
 </style>

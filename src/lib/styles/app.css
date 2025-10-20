@@ -360,7 +360,7 @@ tr.incorrect:hover {
     flex-direction: column;
     justify-content: center;
     width: 100%;
-    max-width: 800px; /* limit width for large monitors */
+    /*max-width: 800px; !* limit width for large monitors *!*/
     margin: 0 auto;
     border-radius: var(--radius-lg);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
@@ -461,7 +461,7 @@ tr.incorrect:hover {
 /* --- Large Desktop Screens --- */
 @media (min-width: 1200px) {
     .question-card {
-        max-width: 800px;
+        /*max-width: 800px;*/
         padding: 2.25rem;
     }
     .button.is-primary.is-light {
@@ -533,7 +533,7 @@ tr.incorrect:hover {
 /* --- Card responsive sizing --- */
 .question-card {
     width: 100%;
-    max-width: 800px;
+    /*max-width: 800px;*/
     margin: 0 auto;
     padding: 1.25rem;
     background: #fff;

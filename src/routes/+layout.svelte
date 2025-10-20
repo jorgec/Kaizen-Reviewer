@@ -73,7 +73,7 @@
 	</div>
 </nav>
 
-<section class="section" style="padding-top: 5rem;">
+<section class="section">
 	<div class="container">
 		<slot />
 	</div>
