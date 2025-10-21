@@ -309,8 +309,6 @@
 						<th class="has-text-right"><span style="font-size:  .8rem;">Correct (30d)</span></th>
 						<th class="has-text-right"><span style="font-size:  .8rem;">Accuracy %</span></th>
 						<th class="has-text-right"><span style="font-size:  .8rem;">Stability (HW)</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Avg s</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">SD s</span></th>
 						<th class="has-text-right"><span style="font-size:  .8rem;">EWM</span></th>
 					</tr>
 					</thead>
@@ -328,8 +326,6 @@
 							<td class="has-text-right">{subj.attempts_30d}</td>
 							<td class="has-text-right">{subj.correct_30d}</td>
 							<td class="has-text-right">{fmtPct(subj.accuracyPct)}</td>
-							<td class="has-text-right"></td>
-							<td class="has-text-right"></td>
 							<td class="has-text-right"></td>
 							<td class="has-text-right"></td>
 						</tr>
@@ -351,8 +347,6 @@
 									<td class="has-text-right">{topic.attempts_30d}</td>
 									<td class="has-text-right">{topic.correct_30d}</td>
 									<td class="has-text-right">{fmtPct(topic.accuracyPct)}</td>
-									<td class="has-text-right"></td>
-									<td class="has-text-right"></td>
 									<td class="has-text-right"></td>
 									<td class="has-text-right"></td>
 								</tr>
@@ -378,8 +372,6 @@
 											<td class="has-text-right">
 												{st.stability_wilson_hw != null ? Number(st.stability_wilson_hw).toFixed(4) : ''}
 											</td>
-											<td class="has-text-right">{fmtNum(st.avg_rt_ms, 2, 1000)}</td>
-											<td class="has-text-right">{fmtNum(st.sd_rt_ms, 2, 1000)}</td>
 											<td class="has-text-right">{fmtNum(st.ewm_accuracy, 2)}</td>
 										</tr>
 									{/each}
@@ -390,35 +382,98 @@
 					</tbody>
 				</table>
 			</div>
-			<div class="has-mw-5xl mx-auto mb-20 px-8 is-small is-size-6">
-				<p class="mb-10 has-text-dark">
-					<code>stability_wilson_hw</code> is the half-width of the 95% Wilson score confidence interval for a user’s
-					accuracy on a topic/subtopic. Think of it as an uncertainty radius around their measured accuracy: the smaller
-					it is, the more “stable” (reliable) the accuracy.
-				</p>
-				<h4 class="is-small is-size-5">How to read it</h4>
-				<p class="mb-10 has-text-dark">
-					Example: accuracy = 0.70 and stability_wilson_hw = 0.088
-					⇒ Wilson 95% CI ≈ [0.612, 0.781] (using the Wilson center).
-					Smaller HW ⇒ more confidence that the “true” accuracy is close to what you see.
-					HW shrinks with more attempts and is largest near p̂ ≈ 0.5.
-				</p>
+			<div class="has-mw-5xl mx-auto mb-20 px-8 mt-4 is-small is-size-6" style="font-size: 80% !important;">
+				<h3 class="title is-3">How to Read <code class="mono">stability_wilson_hw</code> and EWM</h3>
 
-				<h4 class="is-small is-size-5">Intuition by sample size (assuming p̂ ≈ 0.70)</h4>
-				<ul class="list-disc list-inside">
-					<li class="list-item"><code>n=10 → HW ≈ 0.248</code></li>
-					<li class="list-item"><code>n=50 → HW ≈ 0.123</code></li>
-					<li class="list-item"><code>n=100 → HW ≈ 0.088</code></li>
-					<li class="list-item"><code>n=1000 → HW ≈ 0.028</code></li>
-				</ul>
-				<p class="mb-10 has-text-dark">So a quick rule of thumb for UI:</p>
-				<ul class="list-disc list-inside">
-					<li class="list-item"><code>HW > 0.20 → very noisy (low stability)</code></li>
-					<li class="list-item"><code>0.10–0.20 → moderate stability</code></li>
-					<li class="list-item"><code>&lt; 0.10 → decent stability</code></li>
-					<li class="list-item"><code>&lt; 0.05 → strong stability</code></li>
+
+					<p class="lead">
+						<strong><span class="mono">stability_wilson_hw</span></strong> is the half-width of the 95% Wilson score confidence interval
+						for a user’s accuracy on a topic/subtopic. Think of it as an uncertainty radius around the measured accuracy:
+						the smaller it is, the more <em>stable</em> (reliable) the accuracy.
+					</p>
+
+
+				<div class="content">
+					<p class="mono">Example: accuracy = 0.70 and stability_wilson_hw = 0.088 ⇒ Wilson 95% CI ≈ [0.612, 0.781]</p>
+					<p>Smaller half-width (HW) ⇒ more confidence that the “true” accuracy is close to the observed value.
+						HW shrinks with more attempts and is largest near <span class="mono">p̂ ≈ 0.5</span>.</p>
+				</div>
+
+
+				<h3 class="title is-6">Quick rule of thumb (UI)</h3>
+				<ul class="content">
+					<li><span class="tag is-danger is-light mono">HW &gt; 0.20</span> → very noisy (low stability)</li>
+					<li><span class="tag is-warning is-light mono">0.10–0.20</span> → moderate stability</li>
+					<li><span class="tag is-success is-light mono">&lt; 0.10</span> → decent stability</li>
+					<li><span class="tag is-primary is-light mono">&lt; 0.05</span> → strong stability</li>
 				</ul>
 
+				<hr class="rule">
+
+				<h3 class="title is-5">What EWM tells you (at a glance)</h3>
+				<div class="content">
+					<ul>
+						<li><strong>Value range:</strong> 0.00–1.00 (or 0–100%). Higher = better recent mastery.</li>
+						<li><strong>Recency bias:</strong> Newer attempts count more (controlled by your chosen half-life).</li>
+						<li><strong>Responsiveness:</strong> EWM moves faster than raw accuracy; it reflects current skill, not lifetime history.</li>
+					</ul>
+				</div>
+
+				<h3 class="title is-6">Suggested interpretation bands</h3>
+				<table class="table is-striped is-fullwidth is-hoverable is-small">
+					<thead>
+					<tr class="is-size-7">
+						<th class="mono is-size-7">EWM accuracy</th>
+						<th class="is-size-7">Meaning</th>
+						<th class="is-size-7">Recommended action</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr class="is-size-7">
+						<td class="mono is-size-7">≥ 0.85</td>
+						<td class="is-size-7">Strong mastery</td>
+						<td class="is-size-7">Advance difficulty; occasional review</td>
+					</tr>
+					<tr class="is-size-7">
+						<td class="mono is-size-7">0.70–0.84</td>
+						<td class="is-size-7">Solid but improvable</td>
+						<td class="is-size-7">Mixed practice; a few targeted items</td>
+					</tr>
+					<tr class="is-size-7">
+						<td class="mono is-size-7">0.55–0.69</td>
+						<td class="is-size-7">Emerging</td>
+						<td class="is-size-7">Focused practice; scaffolded hints</td>
+					</tr>
+					<tr class="is-size-7">
+						<td class="mono is-size-7">&lt; 0.55</td>
+						<td class="is-size-7">Struggling</td>
+						<td class="is-size-7">Remediate; revisit prerequisites</td>
+					</tr>
+					</tbody>
+				</table>
+
+				<hr class="rule">
+
+				<h3 class="title is-5">How half-life affects interpretation</h3>
+				<div class="content">
+					<ul>
+						<li><strong>Short</strong> (e.g., 7 days): reacts quickly; great for cramming/rapid change, but volatile.</li>
+						<li><strong>Medium</strong> (≈ 30 days): balanced; good general default.</li>
+						<li><strong>Long</strong> (≥ 60–90 days): slow-moving; closer to smoothed long-term mastery.</li>
+					</ul>
+				</div>
+
+				<h2 class="title is-5">Patterns to look for</h2>
+				<div class="content">
+					<ul>
+						<li><strong>High EWM + Low stability HW:</strong> confident mastery now → promote difficulty.</li>
+						<li><strong>High EWM + High stability HW:</strong> possibly lucky streak / small sample → gather a few more items.</li>
+						<li><strong>Low EWM + Low stability HW:</strong> consistently weak → intervene.</li>
+						<li><strong>Dropping EWM (week-over-week):</strong> skill decay → schedule spaced review.</li>
+						<li><strong>EWM ≫ raw accuracy:</strong> recent improvement.</li>
+						<li><strong>EWM ≪ raw accuracy:</strong> regression/forgetting; recent misses outweigh older success.</li>
+					</ul>
+				</div>
 			</div>
 		{/if}
 	</div>
