@@ -31,6 +31,7 @@
 		stability_wilson_hw?: number | null;
 		avg_rt_ms?: number | null;
 		sd_rt_ms?: number | null;
+		ewm_accuracy?: number | null;
 	};
 
 	type TopicGroup = {
@@ -80,9 +81,10 @@
 		error = '';
 
 		try {
-			const { data, error: rpcError } = await supabase.rpc('rpc_user_subtopic_summary', {
+			const { data, error: rpcError } = await supabase.rpc('rpc_user_subtopic_summary_ewm', {
 				p_user_id: user.user_id,
-				p_discipline_id: selectedDiscipline || null
+				p_discipline_id: selectedDiscipline || null,
+				p_half_life_days: 30
 			});
 			if (rpcError) throw rpcError;
 
@@ -119,7 +121,8 @@
 				accuracy: Number(r.accuracy ?? 0), // API gives fraction
 				stability_wilson_hw: r.stability_wilson_hw ?? null,
 				avg_rt_ms: r.avg_rt_ms ?? null,
-				sd_rt_ms: r.sd_rt_ms ?? null
+				sd_rt_ms: r.sd_rt_ms ?? null,
+				ewm_accuracy: r.ewm_accuracy
 			};
 
 			// subject
@@ -193,7 +196,7 @@
 
 	function fmtNum(x: number | null | undefined, maxDecimals = 2, divBy = 1) {
 		if (x == null) return '';
-		const n = Number(x)/divBy;
+		const n = Number(x) / divBy;
 		return Number.isFinite(n) ? n.toFixed(maxDecimals) : '';
 	}
 
@@ -219,13 +222,57 @@
 			const hasTopic = s.topics.some(t => t.topic_id === topic.topic_id);
 			return hasTopic ? { ...s, topics: [...s.topics] } : s;
 		});
+
+	}
+
+	let showModal = false;
+	let modalLoading = false;
+	let modalData: any[] = [];
+	let modalTitle = '';
+
+	async function openDrilldown(level: string, ids: any, label: string) {
+		if (!user?.user_id) return;
+		showModal = true;
+		modalLoading = true;
+		modalTitle = label;
+		modalData = [];
+
+		const payload = {
+			p_user_id: user.user_id,
+			p_subject_id: null,
+			p_topic_id: null,
+			p_subtopic_id: null
+		};
+
+		if (level === 'subject') payload.p_subject_id = ids.subject_id;
+		if (level === 'topic') payload.p_topic_id = ids.topic_id;
+		if (level === 'subtopic') payload.p_subtopic_id = ids.subtopic_id;
+
+		try {
+			const { data, error: rpcError } = await supabase.rpc('rpc_user_taxonomy_drilldown', payload);
+			if (rpcError) throw rpcError;
+			modalData = data || [];
+		} catch (err: any) {
+			modalData = [];
+			modalTitle = 'Error loading details';
+			console.error(err);
+		} finally {
+			modalLoading = false;
+		}
+	}
+
+	function closeModal() {
+		showModal = false;
+		modalData = [];
+		modalTitle = '';
 	}
 </script>
 
 <section class="section">
 	<div class="container">
 		<div class="header-row">
-			<h2 class="title is-4 mb-0">Subtopic Summary</h2>
+			<h2 class="title is-4 mb-0">Learner × Skill (subtopic) with Recency-Weighted Mastery (EWM-Acc)</h2>
+
 			<div class="controls">
 				<div class="select is-small">
 					<select bind:value={selectedDiscipline} on:change={fetchSummary} aria-label="Select Discipline">
@@ -242,7 +289,7 @@
 				</div>
 			</div>
 		</div>
-
+		<h3 class="subtitle">A per-user weak/strong map with both level and stability, taking the user’s 0/1 correctness over time and computing an exponentially weighted mean of those outcomes—so recent answers get more weight than older ones.</h3>
 		{#if loading}
 			<p>Loading...</p>
 		{:else if error}
@@ -262,26 +309,26 @@
 						<th class="has-text-right"><span style="font-size:  .8rem;">Correct (30d)</span></th>
 						<th class="has-text-right"><span style="font-size:  .8rem;">Accuracy %</span></th>
 						<th class="has-text-right"><span style="font-size:  .8rem;">Stability (HW)</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Avg</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">SD</span></th>
+						<th class="has-text-right"><span style="font-size:  .8rem;">Avg s</span></th>
+						<th class="has-text-right"><span style="font-size:  .8rem;">SD s</span></th>
+						<th class="has-text-right"><span style="font-size:  .8rem;">EWM</span></th>
 					</tr>
 					</thead>
 					<tbody>
 					{#each grouped as subj (subj.subject_id)}
 						<tr class={rowClassByAccuracy(subj.accuracyPct)}>
-							<td>
+							<td colspan="3">
 								<button class="toggle-btn" type="button" on:click={() => toggleSubject(subj)}
 												aria-label="Toggle subject">
 									{subj.expanded ? '−' : '+'}
 								</button>
-								{subj.subject_name}
+										{subj.subject_name}
 							</td>
-							<td></td>
-							<td></td>
 							<td class="has-text-right">{subj.distinct_items_30d}</td>
 							<td class="has-text-right">{subj.attempts_30d}</td>
 							<td class="has-text-right">{subj.correct_30d}</td>
 							<td class="has-text-right">{fmtPct(subj.accuracyPct)}</td>
+							<td class="has-text-right"></td>
 							<td class="has-text-right"></td>
 							<td class="has-text-right"></td>
 							<td class="has-text-right"></td>
@@ -291,7 +338,7 @@
 							{#each subj.topics as topic (topic.topic_id)}
 								<tr class={rowClassByAccuracy(topic.accuracyPct)}>
 									<td></td>
-									<td>
+									<td colspan="2">
 										<div class="indent-1">
 											<button class="toggle-btn" type="button" on:click={() => toggleTopic(topic)}
 															aria-label="Toggle topic">
@@ -300,11 +347,11 @@
 											{topic.topic_name}
 										</div>
 									</td>
-									<td></td>
 									<td class="has-text-right">{topic.distinct_items_30d}</td>
 									<td class="has-text-right">{topic.attempts_30d}</td>
 									<td class="has-text-right">{topic.correct_30d}</td>
 									<td class="has-text-right">{fmtPct(topic.accuracyPct)}</td>
+									<td class="has-text-right"></td>
 									<td class="has-text-right"></td>
 									<td class="has-text-right"></td>
 									<td class="has-text-right"></td>
@@ -316,7 +363,13 @@
 											<td></td>
 											<td></td>
 											<td>
-												<div class="indent-2">{st.subtopic_name}</div>
+												<div class="indent-2">
+													<span
+														on:click={() => openDrilldown('subtopic', st, st.subtopic_name)}
+														style="cursor:pointer;">
+															{st.subtopic_name}
+													</span>
+												</div>
 											</td>
 											<td class="has-text-right">{st.distinct_items_30d}</td>
 											<td class="has-text-right">{st.attempts_30d}</td>
@@ -325,8 +378,9 @@
 											<td class="has-text-right">
 												{st.stability_wilson_hw != null ? Number(st.stability_wilson_hw).toFixed(4) : ''}
 											</td>
-											<td class="has-text-right">{fmtNum(st.avg_rt_ms, 2, 1000)}s</td>
-											<td class="has-text-right">{fmtNum(st.sd_rt_ms, 2, 1000)}s</td>
+											<td class="has-text-right">{fmtNum(st.avg_rt_ms, 2, 1000)}</td>
+											<td class="has-text-right">{fmtNum(st.sd_rt_ms, 2, 1000)}</td>
+											<td class="has-text-right">{fmtNum(st.ewm_accuracy, 2)}</td>
 										</tr>
 									{/each}
 								{/if}
@@ -336,9 +390,104 @@
 					</tbody>
 				</table>
 			</div>
+			<div class="has-mw-5xl mx-auto mb-20 px-8 is-small is-size-6">
+				<p class="mb-10 has-text-dark">
+					<code>stability_wilson_hw</code> is the half-width of the 95% Wilson score confidence interval for a user’s
+					accuracy on a topic/subtopic. Think of it as an uncertainty radius around their measured accuracy: the smaller
+					it is, the more “stable” (reliable) the accuracy.
+				</p>
+				<h4 class="is-small is-size-5">How to read it</h4>
+				<p class="mb-10 has-text-dark">
+					Example: accuracy = 0.70 and stability_wilson_hw = 0.088
+					⇒ Wilson 95% CI ≈ [0.612, 0.781] (using the Wilson center).
+					Smaller HW ⇒ more confidence that the “true” accuracy is close to what you see.
+					HW shrinks with more attempts and is largest near p̂ ≈ 0.5.
+				</p>
+
+				<h4 class="is-small is-size-5">Intuition by sample size (assuming p̂ ≈ 0.70)</h4>
+				<ul class="list-disc list-inside">
+					<li class="list-item"><code>n=10 → HW ≈ 0.248</code></li>
+					<li class="list-item"><code>n=50 → HW ≈ 0.123</code></li>
+					<li class="list-item"><code>n=100 → HW ≈ 0.088</code></li>
+					<li class="list-item"><code>n=1000 → HW ≈ 0.028</code></li>
+				</ul>
+				<p class="mb-10 has-text-dark">So a quick rule of thumb for UI:</p>
+				<ul class="list-disc list-inside">
+					<li class="list-item"><code>HW > 0.20 → very noisy (low stability)</code></li>
+					<li class="list-item"><code>0.10–0.20 → moderate stability</code></li>
+					<li class="list-item"><code>&lt; 0.10 → decent stability</code></li>
+					<li class="list-item"><code>&lt; 0.05 → strong stability</code></li>
+				</ul>
+
+			</div>
 		{/if}
 	</div>
 </section>
+
+<!-- ================= Modal ================= -->
+{#if showModal}
+	<div class="modal is-active">
+		<div class="modal-background" on:click={closeModal}></div>
+		<div class="modal-card large-modal">
+			<header class="modal-card-head">
+				<p class="modal-card-title">{modalTitle}</p>
+				<button class="delete" aria-label="close" on:click={closeModal}></button>
+			</header>
+
+			<section class="modal-card-body scrollable-body">
+				{#if modalLoading}
+					<p>Loading details...</p>
+				{:else if modalData.length === 0}
+					<p>No questions found for this category.</p>
+				{:else}
+					<table class="table is-fullwidth is-hoverable">
+						<thead>
+						<tr>
+							<th style="width: 45%">Question</th>
+							<th>Difficulty</th>
+							<th>Responses</th>
+						</tr>
+						</thead>
+						<tbody>
+						{#each modalData as q}
+							<tr>
+								<td>{q.stem}</td>
+								<td>
+										<span
+											class="tag"
+											class:easy={q.difficulty === 'easy'}
+											class:medium={q.difficulty === 'medium'}
+											class:hard={q.difficulty === 'hard'}
+										>
+											{q.difficulty}
+										</span>
+								</td>
+
+								<td>
+									{#if q.responses && q.responses.length > 0}
+										<ul class="response-list">
+											{#each q.responses as r}
+												<li class={r.is_correct ? 'has-text-success' : 'has-text-danger'}>
+													<strong>{r.choice_label}</strong> — {r.choice_text}
+													<br />
+													<small>{new Date(r.answered_at).toLocaleString()}</small>
+													<span class="ml-2">{r.is_correct ? '✅' : '❌'}</span>
+												</li>
+											{/each}
+										</ul>
+									{:else}
+										<em class="has-text-grey-light">No responses yet</em>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+						</tbody>
+					</table>
+				{/if}
+			</section>
+		</div>
+	</div>
+{/if}
 
 <style>
     .header-row {
@@ -366,17 +515,16 @@
 
     .summary-grid table td {
         font-size: .875rem !important;
+				line-height: .85rem !important;
     }
 
     .toggle-btn {
+        line-height: .85rem !important;
         background: transparent;
         border: none;
         cursor: pointer;
         font-weight: 700;
         margin-right: 0.5rem;
-        width: 1.5rem;
-        height: 1.5rem;
-        line-height: 1.5rem;
         text-align: center;
         border-radius: 4px;
         color: inherit;
@@ -410,6 +558,55 @@
     /* Keep hover readable with Bulma */
     table.table.is-hoverable tbody tr:hover {
         filter: brightness(0.98);
+    }
+
+    .modal-card.large-modal {
+        width: 90vw;
+        max-width: 1200px;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .scrollable-body {
+        overflow-y: auto;
+        padding: 1rem;
+    }
+
+    .response-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .response-list li {
+        margin-bottom: 0.5rem;
+        line-height: 1.4em;
+    }
+
+    .modal-card-title {
+        font-weight: 600;
+        font-size: 1.4rem;
+    }
+
+    .tag.easy { background-color: #2a9d8f; color: #fff; }
+    .tag.medium { background-color: #f4a261; color: #1d1d1d; }
+    .tag.hard { background-color: #e76f51; color: #fff; }
+
+    @media (max-width: 768px) {
+        .modal-card.large-modal {
+            width: 95vw;
+            height: 85vh;
+        }
+        .aptitude-table th,
+        .aptitude-table td {
+            font-size: 1.1rem;
+            padding: 1rem 0.75rem;
+        }
+        table.is-fullwidth {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
     }
 </style>
 
