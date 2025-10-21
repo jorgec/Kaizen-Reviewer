@@ -388,7 +388,7 @@
 				<div class="dropdown-menu" id="analytics-menu" role="menu">
 					<div class="dropdown-content">
 						<a href="/analytics/subtopic_summary" class="dropdown-item">Subtopic Summary</a>
-
+						<a href="/analytics/mock_exam_metrics" class="dropdown-item">Mock Exam Trends</a>
 					</div>
 				</div>
 			</div>
