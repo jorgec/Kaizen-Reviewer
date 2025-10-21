@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabaseClient';
 	import { userStore } from '$lib/stores/userStore';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { formatHuman, formatUTC, formatPattern } from '$lib/datetime';
 
@@ -133,10 +133,24 @@
 
 	const unsubscribe = userStore.subscribe((v) => (user = v));
 
+	let showAnalyticsMenu = false;
+
+	function handleClickOutside(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		if (!target.closest('.dropdown')) {
+			showAnalyticsMenu = false;
+		}
+	}
+
+
 	onMount(async () => {
 		if (!user?.user_id) {
 			goto('/login');
 			return;
+		}
+
+		if (typeof document !== 'undefined') {
+			document.addEventListener('click', handleClickOutside);
 		}
 
 		try {
@@ -161,7 +175,15 @@
 		}
 	});
 
+	onDestroy(() => {
+		if (typeof document !== 'undefined') {
+			document.removeEventListener('click', handleClickOutside);
+		}
+	});
+
 	// ---------- Standard Actions ----------
+
+
 
 	async function startPrompt() {
 		try {
@@ -351,7 +373,25 @@
 
 		<div class="sub-buttons">
 			<button class="button is-info" on:click={() => (showCustomModal = true)}>⚙️ Custom Assessment</button>
-			<a class="button is-link" href="/analytics/aptitude">📈 View Analytics</a>
+			<div class="dropdown {showAnalyticsMenu ? 'is-active' : ''}">
+				<div class="dropdown-trigger">
+					<button
+						class="button is-link"
+						aria-haspopup="true"
+						aria-controls="analytics-menu"
+						on:click={() => (showAnalyticsMenu = !showAnalyticsMenu)}
+					>
+						<span>📈 View Analytics</span>
+						<span class="icon is-small">▾</span>
+					</button>
+				</div>
+				<div class="dropdown-menu" id="analytics-menu" role="menu">
+					<div class="dropdown-content">
+						<a href="/analytics/subtopic_summary" class="dropdown-item">Subtopic Summary</a>
+
+					</div>
+				</div>
+			</div>
 		</div>
 
 		{#if loading}
@@ -792,6 +832,30 @@
             font-size: 1.1rem;
         }
     }
+
+    .dropdown {
+        position: relative;
+    }
+
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        z-index: 20;
+    }
+
+    .dropdown.is-active .dropdown-menu {
+        display: block;
+    }
+
+    .dropdown-content {
+        min-width: 220px;
+				background-color: #fff;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+		.dropdown-item {
+				background-color: #fff;
+		}
 
 </style>
 

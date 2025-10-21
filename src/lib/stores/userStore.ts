@@ -17,7 +17,8 @@ function createUserStore() {
 		email: null,
 		display_name: null,
 		orgs: [],
-		roles: []
+		roles: [],
+		disciplines: [],
 	};
 
 	const store = writable(storedUser || defaultValue);
