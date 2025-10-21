@@ -37,6 +37,13 @@
 		user_id: UUID;
 		assessment_id: UUID;
 		root_instance_id: UUID;
+		subject_id: number;
+		topic_id: number;
+		subtopic_id: number;
+		subtopic_name: string;
+		topic_name: string;
+		subject_name: string;
+		stem: string;
 		question_id: number;
 		attempt_number: number;
 		x_prev: number;
@@ -51,6 +58,9 @@
 		subject_id: number;
 		topic_id: number;
 		subtopic_id: number;
+		subtopic_name: string;
+		topic_name: string;
+		subject_name: string;
 		cnt_w2r: number;
 		cnt_r2w: number;
 		cnt_persist_wrong: number;
@@ -64,6 +74,11 @@
 		instance_id: UUID;
 		attempt_number: number;
 		subtopic_id: number;
+		topic_id: number;
+		subject_id: number;
+		subtopic_name: string;
+		topic_name: string;
+		subject_name: string;
 		n: number;
 		k: number;
 		accuracy: number;
@@ -256,7 +271,10 @@
 					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
 						<thead>
 						<tr>
-							<th>Question ID</th>
+							<th>Subject</th>
+							<th>Topic</th>
+							<th>Subtopic</th>
+							<th>Question</th>
 							<th>Attempt</th>
 							<th>Previous</th>
 							<th>Current</th>
@@ -271,7 +289,10 @@
 						{:else}
 							{#each itemFlips as flip}
 								<tr>
-									<td>{flip.question_id}</td>
+									<td>{flip.subject_name}</td>
+									<td>{flip.topic_name}</td>
+									<td>{flip.subtopic_name}</td>
+									<td>{flip.stem}</td>
 									<td>{flip.attempt_number}</td>
 									<td>{flip.x_prev}</td>
 									<td>{flip.x_curr}</td>
@@ -316,9 +337,9 @@
 						{:else}
 							{#each flipsBySubtopic as flip}
 								<tr>
-									<td>{flip.subject_id}</td>
-									<td>{flip.topic_id}</td>
-									<td>{flip.subtopic_id}</td>
+									<td>{flip.subject_name}</td>
+									<td>{flip.topic_name}</td>
+									<td>{flip.subtopic_name}</td>
 									<td class="has-text-success">{flip.cnt_w2r}</td>
 									<td class="has-text-danger">{flip.cnt_r2w}</td>
 									<td>{flip.cnt_persist_wrong}</td>
@@ -339,6 +360,8 @@
 						<thead>
 						<tr>
 							<th>Attempt</th>
+							<th>Subject</th>
+							<th>Topic</th>
 							<th>Subtopic</th>
 							<th>N</th>
 							<th>K (Correct)</th>
@@ -355,7 +378,9 @@
 							{#each subtopicTrends as trend}
 								<tr>
 									<td>{trend.attempt_number}</td>
-									<td>{trend.subtopic_id}</td>
+									<td>{trend.subject_name}</td>
+									<td>{trend.topic_name}</td>
+									<td>{trend.subtopic_name}</td>
 									<td>{trend.n}</td>
 									<td>{trend.k}</td>
 									<td>{formatPercent(trend.accuracy)}</td>
@@ -382,6 +407,7 @@
 
 		table td, table th{
 				line-height: 1rem;
+				font-size: 0.85rem !important;
 		}
 
     .subtitle {
