@@ -408,6 +408,12 @@
 			<!-- Attempt Metrics -->
 			<div class="box">
 				<h2 class="subtitle">Mock Attempt Metrics</h2>
+				<p class="subtitle is-7">
+					One row per retake attempt within a lineage (root → 2 → 3 …): attempt_number, accuracy, correct_count,
+					avg_rt_ms, omit_count, plus deltas vs the previous attempt.
+					How to read: Improvement = delta_accuracy > 0. Check speed–accuracy tradeoff via delta_avg_rt_ms vs
+					delta_accuracy. Stable coverage if items_answered stays similar across attempts.
+				</p>
 				<div class="table-container">
 					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
 						<thead>
@@ -455,6 +461,11 @@
 			<!-- Series Slope -->
 			<div class="box">
 				<h2 class="subtitle">Mock Series Slope</h2>
+				<p class="subtitle is-7">
+					One row per lineage: approx_slope_per_attempt and attempts_so_far.
+					How to read: Positive slope = getting better each retake (e.g., +0.10 ≈ +10 pts/attempt). Zero = flat.
+					Negative = regression. Use alongside the per-attempt chart for shape.
+				</p>
 				<div class="table-container">
 					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
 						<thead>
@@ -492,7 +503,14 @@
 			<!-- Item Flips -->
 			<div class="box">
 				<h2 class="subtitle">Mock Item Flips</h2>
-
+				<p class="subtitle is-7">
+					One row per question per attempt in a lineage: question_id, stem, hierarchy (subject/topic/subtopic), x_prev,
+					x_curr, and flip_class (wrong_to_right, right_to_wrong, persistent_wrong, persistent_right, first_seen).
+					How to read:
+					Focus remediation on right_to_wrong and persistent_wrong.
+					Celebrate wrong_to_right.
+					Treat first_seen as coverage (not a flip); exclude it from flip-rate calculations.
+				</p>
 				<!-- Filters: Subject / Topic / Subtopic -->
 				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
 					<div class="select is-small">
@@ -591,7 +609,11 @@
 			<!-- Flips by Subtopic -->
 			<div class="box">
 				<h2 class="subtitle">Flips by Subtopic</h2>
-
+				<p class="subtitle is-7">
+					What it returns: Flip counts per subtopic (with names): cnt_w2r, cnt_r2w, cnt_persist_wrong,
+					cnt_persist_right.
+					How to read: Use net improvement = cnt_w2r - cnt_r2w. Prioritize subtopics with high cnt_r2w
+				</p>
 				<!-- Filters: Subject / Topic / Subtopic -->
 				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
 					<div class="select is-small">
@@ -680,6 +702,13 @@
 			<!-- Subtopic Trends -->
 			<div class="box">
 				<h2 class="subtitle">Subtopic Trends</h2>
+				<p class="subtitle is-7">
+					What it returns: Per subtopic × attempt within a lineage: n (items), k (correct), accuracy, and
+					delta_accuracy_subtopic vs prior attempt, plus subject/topic/subtopic names.
+					How to read: Rising mastery: delta_accuracy_subtopic > 0 with reasonable n (rule-of-thumb: n ≥ 3); Watch
+					regressions (delta &lt; 0) and low-n volatility.Plot as sparklines by subtopic with a mastery line (e.g.,
+					0.85).
+				</p>
 
 				<!-- Filters: Subject / Topic / Subtopic -->
 				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
