@@ -91,6 +91,151 @@
 	let flipsBySubtopic: FlipBySubtopic[] = [];
 	let subtopicTrends: SubtopicTrend[] = [];
 
+	// ---------- Item Flips Filtering & Sorting State ----------
+	let selectedSubject: string = '';
+	let selectedTopic: string = '';
+	let selectedSubtopic: string = '';
+
+	type FlipSortKey = 'subject' | 'topic' | 'subtopic';
+	type SortDir = 'asc' | 'desc' | '';
+	let flipSortKey: FlipSortKey | '' = '';
+	let flipSortDir: SortDir = '';
+
+	function setFlipSort(column: FlipSortKey) {
+		if (flipSortKey !== column) {
+			flipSortKey = column;
+			flipSortDir = 'asc';
+		} else {
+			flipSortDir = flipSortDir === 'asc' ? 'desc' : flipSortDir === 'desc' ? '' : 'asc';
+			if (flipSortDir === '') {
+				flipSortKey = '';
+			}
+		}
+	}
+
+	// Options computed from current data and selections (Item Flips)
+	$: subjectOptions = Array.from(
+		new Set(itemFlips.map((f) => f.subject_name).filter((v) => v && v.trim().length > 0))
+	).sort((a, b) => a.localeCompare(b));
+
+	$: topicOptions = Array.from(
+		new Set(
+			itemFlips
+				.filter((f) => (selectedSubject ? f.subject_name === selectedSubject : true))
+				.map((f) => f.topic_name)
+				.filter((v) => v && v.trim().length > 0)
+		)
+	).sort((a, b) => a.localeCompare(b));
+
+	$: subtopicOptions = Array.from(
+		new Set(
+			itemFlips
+				.filter((f) => (selectedSubject ? f.subject_name === selectedSubject : true))
+				.filter((f) => (selectedTopic ? f.topic_name === selectedTopic : true))
+				.map((f) => f.subtopic_name)
+				.filter((v) => v && v.trim().length > 0)
+		)
+	).sort((a, b) => a.localeCompare(b));
+
+	// Reset invalid downstream selections
+	$: if (selectedSubject && !subjectOptions.includes(selectedSubject)) selectedSubject = '';
+	$: if (selectedTopic && !topicOptions.includes(selectedTopic)) selectedTopic = '';
+	$: if (selectedSubtopic && !subtopicOptions.includes(selectedSubtopic)) selectedSubtopic = '';
+
+	// Filtered + sorted list (Item Flips)
+	$: filteredItemFlips = itemFlips
+		.filter((f) => (selectedSubject ? f.subject_name === selectedSubject : true))
+		.filter((f) => (selectedTopic ? f.topic_name === selectedTopic : true))
+		.filter((f) => (selectedSubtopic ? f.subtopic_name === selectedSubtopic : true));
+
+	$: sortedItemFlips = (() => {
+		if (!flipSortKey || !flipSortDir) return filteredItemFlips;
+		const keyMap: Record<FlipSortKey, (f: ItemFlip) => string> = {
+			subject: (f) => f.subject_name || '',
+			topic: (f) => f.topic_name || '',
+			subtopic: (f) => f.subtopic_name || ''
+		};
+		const getter = keyMap[flipSortKey];
+		return [...filteredItemFlips].sort((a, b) => {
+			const v1 = getter(a).toLowerCase();
+			const v2 = getter(b).toLowerCase();
+			const cmp = v1.localeCompare(v2);
+			return flipSortDir === 'asc' ? cmp : -cmp;
+		});
+	})();
+
+	// ---------- Flips by Subtopic Filtering & Sorting State ----------
+	let selectedSubjectFbs: string = '';
+	let selectedTopicFbs: string = '';
+	let selectedSubtopicFbs: string = '';
+
+	type FbsSortKey = 'subject' | 'topic' | 'subtopic';
+	let fbsSortKey: FbsSortKey | '' = '';
+	let fbsSortDir: SortDir = '';
+
+	function setFbsSort(column: FbsSortKey) {
+		if (fbsSortKey !== column) {
+			fbsSortKey = column;
+			fbsSortDir = 'asc';
+		} else {
+			fbsSortDir = fbsSortDir === 'asc' ? 'desc' : fbsSortDir === 'desc' ? '' : 'asc';
+			if (fbsSortDir === '') {
+				fbsSortKey = '';
+			}
+		}
+	}
+
+	// Options computed from current data and selections (Flips by Subtopic)
+	$: subjectOptionsFbs = Array.from(
+		new Set(flipsBySubtopic.map((f) => f.subject_name).filter((v) => v && v.trim().length > 0))
+	).sort((a, b) => a.localeCompare(b));
+
+	$: topicOptionsFbs = Array.from(
+		new Set(
+			flipsBySubtopic
+				.filter((f) => (selectedSubjectFbs ? f.subject_name === selectedSubjectFbs : true))
+				.map((f) => f.topic_name)
+				.filter((v) => v && v.trim().length > 0)
+		)
+	).sort((a, b) => a.localeCompare(b));
+
+	$: subtopicOptionsFbs = Array.from(
+		new Set(
+			flipsBySubtopic
+				.filter((f) => (selectedSubjectFbs ? f.subject_name === selectedSubjectFbs : true))
+				.filter((f) => (selectedTopicFbs ? f.topic_name === selectedTopicFbs : true))
+				.map((f) => f.subtopic_name)
+				.filter((v) => v && v.trim().length > 0)
+		)
+	).sort((a, b) => a.localeCompare(b));
+
+	// Reset invalid downstream selections (FBS)
+	$: if (selectedSubjectFbs && !subjectOptionsFbs.includes(selectedSubjectFbs)) selectedSubjectFbs = '';
+	$: if (selectedTopicFbs && !topicOptionsFbs.includes(selectedTopicFbs)) selectedTopicFbs = '';
+	$: if (selectedSubtopicFbs && !subtopicOptionsFbs.includes(selectedSubtopicFbs)) selectedSubtopicFbs = '';
+
+	// Filtered + sorted list (FBS)
+	$: filteredFlipsBySubtopic = flipsBySubtopic
+		.filter((f) => (selectedSubjectFbs ? f.subject_name === selectedSubjectFbs : true))
+		.filter((f) => (selectedTopicFbs ? f.topic_name === selectedTopicFbs : true))
+		.filter((f) => (selectedSubtopicFbs ? f.subtopic_name === selectedSubtopicFbs : true));
+
+	$: sortedFlipsBySubtopic = (() => {
+		if (!fbsSortKey || !fbsSortDir) return filteredFlipsBySubtopic;
+		const keyMap: Record<FbsSortKey, (f: FlipBySubtopic) => string> = {
+			subject: (f) => f.subject_name || '',
+			topic: (f) => f.topic_name || '',
+			subtopic: (f) => f.subtopic_name || ''
+		};
+		const getter = keyMap[fbsSortKey];
+		return [...filteredFlipsBySubtopic].sort((a, b) => {
+			const v1 = getter(a).toLowerCase();
+			const v2 = getter(b).toLowerCase();
+			const cmp = v1.localeCompare(v2);
+			return fbsSortDir === 'asc' ? cmp : -cmp;
+		});
+	})();
+
 	let loading = true;
 	let errorMsg: string | null = null;
 	const unsubscribe = userStore.subscribe((v) => (user = v));
@@ -157,6 +302,86 @@
 		if (value === null || value === undefined || !Number.isFinite(value)) return '';
 		return value.toFixed(decimals);
 	}
+
+	// --- Subtopic Trends Filtering & Sorting State ---
+	let stSelectedSubject: string = '';
+	let stSelectedTopic: string = '';
+	let stSelectedSubtopic: string = '';
+
+	type StSortKey = 'subject' | 'topic' | 'subtopic' | 'accuracy' | 'delta';
+	let stSortKey: StSortKey | '' = '';
+	let stSortDir: SortDir = '';
+
+	function setStSort(column: StSortKey) {
+		if (stSortKey !== column) {
+			stSortKey = column;
+			stSortDir = 'asc';
+		} else {
+			stSortDir = stSortDir === 'asc' ? 'desc' : stSortDir === 'desc' ? '' : 'asc';
+			if (stSortDir === '') {
+				stSortKey = '';
+			}
+		}
+	}
+
+	// Subject/Topic/Subtopic options for Subtopic Trends
+	$: stSubjectOptions = Array.from(
+		new Set(subtopicTrends.map((t) => t.subject_name).filter((v) => v && v.trim().length > 0))
+	).sort((a, b) => a.localeCompare(b));
+
+	$: stTopicOptions = Array.from(
+		new Set(
+			subtopicTrends
+				.filter((t) => (stSelectedSubject ? t.subject_name === stSelectedSubject : true))
+				.map((t) => t.topic_name)
+				.filter((v) => v && v.trim().length > 0)
+		)
+	).sort((a, b) => a.localeCompare(b));
+
+	$: stSubtopicOptions = Array.from(
+		new Set(
+			subtopicTrends
+				.filter((t) => (stSelectedSubject ? t.subject_name === stSelectedSubject : true))
+				.filter((t) => (stSelectedTopic ? t.topic_name === stSelectedTopic : true))
+				.map((t) => t.subtopic_name)
+				.filter((v) => v && v.trim().length > 0)
+		)
+	).sort((a, b) => a.localeCompare(b));
+
+	// Reset invalid downstream selections
+	$: if (stSelectedSubject && !stSubjectOptions.includes(stSelectedSubject)) stSelectedSubject = '';
+	$: if (stSelectedTopic && !stTopicOptions.includes(stSelectedTopic)) stSelectedTopic = '';
+	$: if (stSelectedSubtopic && !stSubtopicOptions.includes(stSelectedSubtopic)) stSelectedSubtopic = '';
+
+	// Filtered + sorted list (Subtopic Trends)
+	$: filteredSubtopicTrends = subtopicTrends
+		.filter((t) => (stSelectedSubject ? t.subject_name === stSelectedSubject : true))
+		.filter((t) => (stSelectedTopic ? t.topic_name === stSelectedTopic : true))
+		.filter((t) => (stSelectedSubtopic ? t.subtopic_name === stSelectedSubtopic : true));
+
+	$: sortedSubtopicTrends = (() => {
+		if (!stSortKey || !stSortDir) return filteredSubtopicTrends;
+		const keyMap: Record<StSortKey, (t: SubtopicTrend) => string | number | null> = {
+			subject: (t) => t.subject_name || '',
+			topic: (t) => t.topic_name || '',
+			subtopic: (t) => t.subtopic_name || '',
+			accuracy: (t) => typeof t.accuracy === 'number' ? t.accuracy : -Infinity,
+			delta: (t) => typeof t.delta_accuracy_subtopic === 'number' ? t.delta_accuracy_subtopic : -Infinity
+		};
+		const getter = keyMap[stSortKey];
+		return [...filteredSubtopicTrends].sort((a, b) => {
+			const v1 = getter(a);
+			const v2 = getter(b);
+			if (typeof v1 === 'number' && typeof v2 === 'number') {
+				return stSortDir === 'asc' ? v1 - v2 : v2 - v1;
+			} else {
+				const s1 = (v1 ?? '').toString().toLowerCase();
+				const s2 = (v2 ?? '').toString().toLowerCase();
+				const cmp = s1.localeCompare(s2);
+				return stSortDir === 'asc' ? cmp : -cmp;
+			}
+		});
+	})();
 
 	onMount(() => {
 		if (!user?.user_id) {
@@ -267,13 +492,63 @@
 			<!-- Item Flips -->
 			<div class="box">
 				<h2 class="subtitle">Mock Item Flips</h2>
+
+				<!-- Filters: Subject / Topic / Subtopic -->
+				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
+					<div class="select is-small">
+						<select bind:value={selectedSubject} aria-label="Filter by subject">
+							<option value=''>All Subjects</option>
+							{#each subjectOptions as s}
+								<option value={s}>{s}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="select is-small">
+						<select bind:value={selectedTopic} aria-label="Filter by topic">
+							<option value=''>All Topics</option>
+							{#each topicOptions as t}
+								<option value={t}>{t}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="select is-small">
+						<select bind:value={selectedSubtopic} aria-label="Filter by subtopic">
+							<option value=''>All Subtopics</option>
+							{#each subtopicOptions as st}
+								<option value={st}>{st}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
 				<div class="table-container">
 					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
 						<thead>
 						<tr>
-							<th>Subject</th>
-							<th>Topic</th>
-							<th>Subtopic</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFlipSort('subject')}>
+									<span>Subject</span>
+									<span class="icon is-small ml-1">
+										{#if flipSortKey === 'subject' && flipSortDir === 'asc'}▲{:else if flipSortKey === 'subject' && flipSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFlipSort('topic')}>
+									<span>Topic</span>
+									<span class="icon is-small ml-1">
+										{#if flipSortKey === 'topic' && flipSortDir === 'asc'}▲{:else if flipSortKey === 'topic' && flipSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFlipSort('subtopic')}>
+									<span>Subtopic</span>
+									<span class="icon is-small ml-1">
+										{#if flipSortKey === 'subtopic' && flipSortDir === 'asc'}▲{:else if flipSortKey === 'subtopic' && flipSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
 							<th>Question</th>
 							<th>Attempt</th>
 							<th>Previous</th>
@@ -282,12 +557,12 @@
 						</tr>
 						</thead>
 						<tbody>
-						{#if itemFlips.length === 0}
+						{#if sortedItemFlips.length === 0}
 							<tr>
-								<td colspan="5" class="has-text-centered">No data available</td>
+								<td colspan="8" class="has-text-centered">No data available</td>
 							</tr>
 						{:else}
-							{#each itemFlips as flip}
+							{#each sortedItemFlips as flip}
 								<tr>
 									<td>{flip.subject_name}</td>
 									<td>{flip.topic_name}</td>
@@ -316,13 +591,63 @@
 			<!-- Flips by Subtopic -->
 			<div class="box">
 				<h2 class="subtitle">Flips by Subtopic</h2>
+
+				<!-- Filters: Subject / Topic / Subtopic -->
+				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
+					<div class="select is-small">
+						<select bind:value={selectedSubjectFbs} aria-label="Filter FBS by subject">
+							<option value=''>All Subjects</option>
+							{#each subjectOptionsFbs as s}
+								<option value={s}>{s}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="select is-small">
+						<select bind:value={selectedTopicFbs} aria-label="Filter FBS by topic">
+							<option value=''>All Topics</option>
+							{#each topicOptionsFbs as t}
+								<option value={t}>{t}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="select is-small">
+						<select bind:value={selectedSubtopicFbs} aria-label="Filter FBS by subtopic">
+							<option value=''>All Subtopics</option>
+							{#each subtopicOptionsFbs as st}
+								<option value={st}>{st}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
 				<div class="table-container">
 					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
 						<thead>
 						<tr>
-							<th>Subject</th>
-							<th>Topic</th>
-							<th>Subtopic</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFbsSort('subject')}>
+									<span>Subject</span>
+									<span class="icon is-small ml-1">
+										{#if fbsSortKey === 'subject' && fbsSortDir === 'asc'}▲{:else if fbsSortKey === 'subject' && fbsSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFbsSort('topic')}>
+									<span>Topic</span>
+									<span class="icon is-small ml-1">
+										{#if fbsSortKey === 'topic' && fbsSortDir === 'asc'}▲{:else if fbsSortKey === 'topic' && fbsSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFbsSort('subtopic')}>
+									<span>Subtopic</span>
+									<span class="icon is-small ml-1">
+										{#if fbsSortKey === 'subtopic' && fbsSortDir === 'asc'}▲{:else if fbsSortKey === 'subtopic' && fbsSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
 							<th>Wrong → Right</th>
 							<th>Right → Wrong</th>
 							<th>Persist Wrong</th>
@@ -330,12 +655,12 @@
 						</tr>
 						</thead>
 						<tbody>
-						{#if flipsBySubtopic.length === 0}
+						{#if sortedFlipsBySubtopic.length === 0}
 							<tr>
 								<td colspan="7" class="has-text-centered">No data available</td>
 							</tr>
 						{:else}
-							{#each flipsBySubtopic as flip}
+							{#each sortedFlipsBySubtopic as flip}
 								<tr>
 									<td>{flip.subject_name}</td>
 									<td>{flip.topic_name}</td>
@@ -355,27 +680,91 @@
 			<!-- Subtopic Trends -->
 			<div class="box">
 				<h2 class="subtitle">Subtopic Trends</h2>
+
+				<!-- Filters: Subject / Topic / Subtopic -->
+				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
+					<div class="select is-small">
+						<select bind:value={stSelectedSubject} aria-label="Filter ST by subject">
+							<option value=''>All Subjects</option>
+							{#each stSubjectOptions as s}
+								<option value={s}>{s}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="select is-small">
+						<select bind:value={stSelectedTopic} aria-label="Filter ST by topic">
+							<option value=''>All Topics</option>
+							{#each stTopicOptions as t}
+								<option value={t}>{t}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="select is-small">
+						<select bind:value={stSelectedSubtopic} aria-label="Filter ST by subtopic">
+							<option value=''>All Subtopics</option>
+							{#each stSubtopicOptions as st}
+								<option value={st}>{st}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
 				<div class="table-container">
 					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
 						<thead>
 						<tr>
 							<th>Attempt</th>
-							<th>Subject</th>
-							<th>Topic</th>
-							<th>Subtopic</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('subject')}>
+									<span>Subject</span>
+									<span class="icon is-small ml-1">
+										{#if stSortKey === 'subject' && stSortDir === 'asc'}▲{:else if stSortKey === 'subject' && stSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('topic')}>
+									<span>Topic</span>
+									<span class="icon is-small ml-1">
+										{#if stSortKey === 'topic' && stSortDir === 'asc'}▲{:else if stSortKey === 'topic' && stSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('subtopic')}>
+									<span>Subtopic</span>
+									<span class="icon is-small ml-1">
+										{#if stSortKey === 'subtopic' && stSortDir === 'asc'}▲{:else if stSortKey === 'subtopic' && stSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
 							<th>N</th>
 							<th>K (Correct)</th>
-							<th>Accuracy</th>
-							<th>Δ Accuracy</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('accuracy')}>
+									<span>Accuracy</span>
+									<span class="icon is-small ml-1">
+										{#if stSortKey === 'accuracy' && stSortDir === 'asc'}▲{:else if stSortKey === 'accuracy' && stSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
+							<th>
+								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('delta')}>
+									<span>Δ Accuracy</span>
+									<span class="icon is-small ml-1">
+										{#if stSortKey === 'delta' && stSortDir === 'asc'}▲{:else if stSortKey === 'delta' && stSortDir === 'desc'}▼{:else}◀▶{/if}
+									</span>
+								</button>
+							</th>
 						</tr>
 						</thead>
 						<tbody>
-						{#if subtopicTrends.length === 0}
+						{#if sortedSubtopicTrends.length === 0}
 							<tr>
-								<td colspan="6" class="has-text-centered">No data available</td>
+								<td colspan="8" class="has-text-centered">No data available</td>
 							</tr>
 						{:else}
-							{#each subtopicTrends as trend}
+							{#each sortedSubtopicTrends as trend}
 								<tr>
 									<td>{trend.attempt_number}</td>
 									<td>{trend.subject_name}</td>
@@ -405,12 +794,16 @@
         overflow-x: auto;
     }
 
-		table td, table th{
-				line-height: 1rem;
-				font-size: 0.85rem !important;
-		}
+    table td, table th {
+        line-height: 1rem;
+        font-size: 0.85rem !important;
+    }
 
     .subtitle {
         margin-bottom: 1rem;
+    }
+
+    .filters .select select {
+        min-width: 180px;
     }
 </style>
