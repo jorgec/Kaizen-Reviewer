@@ -49,7 +49,7 @@
 </script>
 
 <nav
-	class="navbar has-shadow"
+	class="navbar has-background-dark has-shadow"
 	class:shrink={scrolled}
 	style="position: fixed; width: 100%; top: 0; z-index: 10;"
 >
@@ -57,15 +57,15 @@
 		class="container is-flex is-justify-content-space-between is-align-items-center py-3 px-5"
 	>
 		<a href="/dashboard" class="navbar-brand-link">
-			<h1 class="title is-5" style="margin: 0;">Kaizen Reviewer</h1>
+			<h1 class="title is-5" style="margin: 0; color: #eee">Kaizen</h1>
 		</a>
 
 		{#if user?.display_name}
 			<div class="is-flex is-align-items-center">
-				<span class="has-text-weight-medium user-display">
+				<span class="has-text-weight-medium user-display" style="color: #a8dadc">
 					{user.display_name}
 				</span>
-				<button class="button is-light is-small ml-3" on:click={logout}>Log out</button>
+				<button class="button is-danger is-small ml-3" on:click={logout}>Log out</button>
 			</div>
 		{:else}
 			<a href="/login" class="button is-primary">Login</a>

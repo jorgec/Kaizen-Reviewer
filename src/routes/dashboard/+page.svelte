@@ -16,6 +16,40 @@
 	let completedSortBy: 'date' | 'title' | 'type' | 'score' = 'date';
 	let completedSortDir: 'asc' | 'desc' = 'desc';
 
+	// Filter state variables
+	type AssessmentType = 'prompt' | 'short_quiz' | 'long_quiz' | 'mock_exam';
+	let activeTypeFilters: Set<AssessmentType> = new Set(['prompt', 'short_quiz', 'long_quiz', 'mock_exam']);
+	let completedTypeFilters: Set<AssessmentType> = new Set(['prompt', 'short_quiz', 'long_quiz', 'mock_exam']);
+
+	const typeLabels: Record<AssessmentType, string> = {
+		prompt: 'Single Question Prompt',
+		short_quiz: 'Short Quiz',
+		long_quiz: 'Adaptive Quiz',
+		mock_exam: 'Mock Exam'
+	};
+
+	function toggleTypeFilter(type: AssessmentType, section: 'active' | 'completed') {
+		if (section === 'active') {
+			if (activeTypeFilters.has(type)) {
+				activeTypeFilters.delete(type);
+			} else {
+				activeTypeFilters.add(type);
+			}
+			activeTypeFilters = new Set(activeTypeFilters);
+		} else {
+			if (completedTypeFilters.has(type)) {
+				completedTypeFilters.delete(type);
+			} else {
+				completedTypeFilters.add(type);
+			}
+			completedTypeFilters = new Set(completedTypeFilters);
+		}
+	}
+
+	function filterByType(list: any[], typeFilters: Set<AssessmentType>) {
+		return list.filter(item => typeFilters.has(item.type as AssessmentType));
+	}
+
 	// Toggle sorting direction for a section
 	function toggleSort(type: 'active' | 'completed') {
 		if (type === 'active') {
@@ -191,6 +225,23 @@
 		}
 	}
 
+	// ---------- Retake Mock Exam ----------
+	async function retakeMockExam(instanceId: string, event: Event) {
+		event.preventDefault();
+		event.stopPropagation();
+
+		try {
+			const { data, error } = await supabase.rpc('rpc_duplicate_assessment_instance', {
+				p_instance_id: instanceId
+			});
+			if (error) throw error;
+			const newInstanceId = data?.instance_id || data;
+			goto(`/assessment/${newInstanceId}`);
+		} catch (err: any) {
+			alert('Error retaking assessment: ' + err.message);
+		}
+	}
+
 	// ---------- Custom Assessment Creation ----------
 	async function createCustomAssessment() {
 		if (!form.bank_id || !form.title) {
@@ -328,12 +379,24 @@
 					</button>
 				</div>
 			</div>
-			{#if activeAssessments.length === 0}
+			<div class="type-filters mb-3">
+				{#each Object.entries(typeLabels) as [type, label]}
+					<label class="checkbox-label">
+						<input
+							type="checkbox"
+							checked={activeTypeFilters.has(type as AssessmentType)}
+							on:change={() => toggleTypeFilter(type as AssessmentType, 'active')}
+						/>
+						<span>{label}</span>
+					</label>
+				{/each}
+			</div>
+			{#if filterByType(activeAssessments, activeTypeFilters).length === 0}
 				<p>No active assessments.</p>
 			{:else}
 				<!-- Responsive grid for active assessments -->
 				<div class="dashboard-grid">
-					{#each sortAssessments(activeAssessments, activeSortBy, activeSortDir).slice(0, activeShowCount) as a (a.instance_id)}
+					{#each sortAssessments(filterByType(activeAssessments, activeTypeFilters), activeSortBy, activeSortDir).slice(0, activeShowCount) as a (a.instance_id)}
 						<a href={`/assessment/${a.instance_id}`} class="card assessment-card dashboard-card">
 							<div class="card-content">
 								<p class="title is-6 mb-2">{a.title}</p>
@@ -361,7 +424,7 @@
 						</a>
 					{/each}
 				</div>
-				{#if activeShowCount < activeAssessments.length}
+				{#if activeShowCount < filterByType(activeAssessments, activeTypeFilters).length}
 					<div class="has-text-centered mt-3">
 						<button class="button is-small is-link" on:click={() => (activeShowCount += 9)}>
 							Show More
@@ -390,38 +453,67 @@
 					</button>
 				</div>
 			</div>
-			{#if completedAssessments.length === 0}
+			<div class="type-filters mb-3">
+				{#each Object.entries(typeLabels) as [type, label]}
+					<label class="checkbox-label">
+						<input
+							type="checkbox"
+							checked={completedTypeFilters.has(type as AssessmentType)}
+							on:change={() => toggleTypeFilter(type as AssessmentType, 'completed')}
+						/>
+						<span>{label}</span>
+					</label>
+				{/each}
+			</div>
+			{#if filterByType(completedAssessments, completedTypeFilters).length === 0}
 				<p>No completed assessments yet.</p>
 			{:else}
 				<!-- Responsive grid for completed assessments -->
 				<div class="dashboard-grid">
-					{#each sortAssessments(completedAssessments, completedSortBy, completedSortDir).slice(0, completedShowCount) as c (c.instance_id)}
-						<a href={`/results/${c.instance_id}`} class="card assessment-card dashboard-card"
+					{#each sortAssessments(filterByType(completedAssessments, completedTypeFilters), completedSortBy, completedSortDir).slice(0, completedShowCount) as c (c.instance_id)}
+						<div class="card assessment-card dashboard-card"
 							 style="border-left: 4px solid {getMasteryColor(c.score)};"
 						>
-							<div class="card-content">
-								<p class="title is-6 mb-2">{c.title}</p>
-								<p class="subtitle is-7 mb-2">{c.type ? c.type.charAt(0).toUpperCase() + c.type.slice(1) : ''}
-									Assessment</p>
-								{#if c.description}
-									<p class="is-size-7 mb-2 has-text-grey">{c.description}</p>
-								{/if}
-								<div class="is-flex is-align-items-center is-justify-content-space-between mb-2">
-									<span class="is-size-7">Score: {c.score}%</span>
-									<span
-										class="is-size-7">{c.raw_score !== undefined && c.total_items ? `(${c.raw_score}/${c.total_items})` : ''}</span>
+							<a href={`/results/${c.instance_id}`} class="card-link">
+								<div class="card-content">
+									<p class="title is-6 mb-2">{c.title}</p>
+									<p class="subtitle is-7 mb-2">{c.type ? c.type.charAt(0).toUpperCase() + c.type.slice(1) : ''}
+										Assessment</p>
+									{#if c.description}
+										<p class="is-size-7 mb-2 has-text-grey">{c.description}</p>
+									{/if}
+									<div class="is-flex is-align-items-center is-justify-content-space-between mb-2">
+										<span class="is-size-7">Score: {c.score}%</span>
+										<span
+											class="is-size-7">{c.raw_score !== undefined && c.total_items ? `(${c.raw_score}/${c.total_items})` : ''}</span>
+									</div>
+									{#if c.completed_at}
+										<p class="is-size-7 mt-2">Completed: {formatHuman(c.completed_at, { timeZone: 'Asia/Manila' })}</p>
+									{/if}
+									{#if c.duration_seconds}
+										<p class="is-size-7">Duration: {Math.round(c.duration_seconds / 60)} min</p>
+									{/if}
 								</div>
-								{#if c.completed_at}
-									<p class="is-size-7 mt-2">Completed: {formatHuman(c.completed_at, { timeZone: 'Asia/Manila' })}</p>
-								{/if}
-								{#if c.duration_seconds}
-									<p class="is-size-7">Duration: {Math.round(c.duration_seconds / 60)} min</p>
-								{/if}
-							</div>
-						</a>
+							</a>
+							{#if c.parent_id !== null}
+								<div class="card-footer card-footer-item">
+										<a href="{`/results/${c.parent_id}`}" class="is-size-6 card-link">Parent Detail</a>
+								</div>
+							{/if}
+							{#if c.type === 'mock_exam'}
+								<div class="card-footer">
+									<button
+										class="button is-small is-primary card-footer-item"
+										on:click={(e) => retakeMockExam(c.instance_id, e)}
+									>
+										🔄 Retake
+									</button>
+								</div>
+							{/if}
+						</div>
 					{/each}
 				</div>
-				{#if completedShowCount < completedAssessments.length}
+				{#if completedShowCount < filterByType(completedAssessments, completedTypeFilters).length}
 					<div class="has-text-centered mt-3">
 						<button class="button is-small is-link" on:click={() => (completedShowCount += 9)}>
 							Show More
@@ -542,16 +634,56 @@
         white-space: nowrap;
     }
 
+    .type-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 0.75rem 0;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-size: 0.95rem;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    .checkbox-label span {
+        user-select: none;
+    }
+
     .assessment-card {
         display: block;
         border-radius: var(--radius-lg);
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
     }
 
     .assessment-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .card-footer {
+        border-top: 1px solid #ededed;
+    }
+
+    .card-footer-item {
+        border: none;
+        border-radius: 0;
+        width: 100%;
     }
 
     /* Responsive dashboard grid */
