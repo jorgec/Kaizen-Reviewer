@@ -531,11 +531,11 @@
 						<span>Poor</span>
 						<div class="legend-swatch" style="background:#d00000"></div>
 						<div class="legend-swatch" style="background:#e36414"></div>
-						<div class="legend-swatch" style="background:#fb8b24"></div>
-						<div class="legend-swatch" style="background:#98c1d9"></div>
-						<div class="legend-swatch" style="background:#57cc99"></div>
-						<div class="legend-swatch" style="background:#02c39a"></div>
-						<div class="legend-swatch" style="background:#06d6a0"></div>
+						<div class="legend-swatch" style="background:#f1a651"></div>
+						<div class="legend-swatch" style="background:#d8e158"></div>
+						<div class="legend-swatch" style="background:#9eb36a"></div>
+						<div class="legend-swatch" style="background:#53bf58"></div>
+						<div class="legend-swatch" style="background:#11ecec"></div>
 						<span>Good</span>
 					</div>
 				{/if}
