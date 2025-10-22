@@ -4,6 +4,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { formatHuman, formatUTC, formatPattern } from '$lib/datetime';
+	import { browser } from '$app/environment';
 
 	let user: any;
 	let activeAssessments: any[] = [];
@@ -181,6 +182,61 @@
 		}
 	}
 
+	function buildCalendarGridFixed(data: any[]): any[][] {
+		// group incoming rows by week
+		const weeksByIndex: Record<number, any[]> = {};
+		for (const d of data) {
+			(weeksByIndex[d.week_index] ??= []).push(d);
+		}
+
+		// determine the visible window: exactly 52 weeks ending in the max week we have
+		const maxWeek = Math.max(...Object.keys(weeksByIndex).map(Number));
+		const minWeek = maxWeek - 51;
+
+		const grid: any[][] = [];
+		for (let w = minWeek; w <= maxWeek; w++) {
+			const days = weeksByIndex[w] ?? [];
+			// start the column with 7 dummy slots
+			const col = Array.from({ length: 7 }, () => ({
+				stat_date: null,
+				accuracy: null,
+				answered: null,
+				correct: null,
+				avg_rt_ms: null,
+				isDummy: true
+			}));
+
+			// drop the real days into their dow slots
+			for (const d of days) {
+				if (d.dow >= 0 && d.dow <= 6) col[d.dow] = { ...d, isDummy: false };
+			}
+			grid.push(col);
+		}
+		return grid;
+	}
+
+	/**
+	 * Month labels aligned to columns.
+	 * We label a column with the month of its **first real day** when that month changes.
+	 */
+	function buildMonthLabels(weeks: any[][]): string[] {
+		const labels: string[] = [];
+		const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+		let lastMonth: number | null = null;
+
+		for (const col of weeks) {
+			const firstReal = col.find((d) => d && d.stat_date);
+			if (!firstReal) { labels.push(''); continue; }
+			const m = new Date(firstReal.stat_date).getMonth();
+			if (m !== lastMonth) {
+				labels.push(months[m]);
+				lastMonth = m;
+			} else {
+				labels.push('');
+			}
+		}
+		return labels;
+	}
 
 	onMount(async () => {
 		if (!user?.user_id) {
@@ -190,53 +246,27 @@
 
 		// calendar funcs
 		try {
-			const { data, error } = await supabase.rpc('rpc_get_user_calendar_grid', { p_user_id: user.user_id });
-			if (error) throw error;
-			calendarData = data || [];
+			const { data: rawCalendarData, error: calErr } = await supabase.rpc(
+				'rpc_get_user_calendar_grid',
+				{ p_user_id: user.user_id }
+			);
+			if (calErr) throw calErr;
 
-			// Group by week index
-			const grouped: Record<number, any[]> = {};
-			for (const d of calendarData) {
-				if (!grouped[d.week_index]) grouped[d.week_index] = [];
-				grouped[d.week_index].push(d);
-			}
+			calendarData = rawCalendarData || [];
 
-			const weeks: any[][] = [];
-			for (let i = 0; i < 52; i++) {
-				const weekDays = Array(7)
-					.fill(null)
-					.map((_, dow) => {
-						const found = grouped[i]?.find((x) => x.dow === dow);
-						return found || { accuracy: null, answered: 0, correct: 0, stat_date: '', avg_rt_ms: null };
-					});
-				weeks.push(weekDays);
-			}
-			calendarWeeks = weeks;
+			// Build the strict 52x7 grid
+			calendarWeeks = buildCalendarGridFixed(calendarData);
 
-			const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-			const startDate = new Date();
-			startDate.setDate(startDate.getDate() - 364); // ~1 year ago
-			monthLabels = new Array(52).fill('');
-
-			let currentMonth = -1;
-			for (let i = 0; i < 52; i++) {
-				const weekStart = new Date(startDate.getTime());
-				weekStart.setDate(startDate.getDate() + i * 7);
-				const m = weekStart.getMonth();
-				if (m !== currentMonth) {
-					monthLabels[i] = months[m];
-					currentMonth = m;
-				}
-			}
+			// Month labels that align to the columns
+			monthLabels = buildMonthLabels(calendarWeeks);
 		} catch (err: any) {
 			calendarError = err.message;
 		} finally {
 			calendarLoading = false;
 		}
 
-		if (typeof document !== 'undefined') {
-			document.addEventListener('click', handleClickOutside);
-		}
+		// dropdown outside click – browser only
+		if (browser) document.addEventListener('click', handleClickOutside);
 
 		try {
 			const [activeRes, completedRes, bankRes] = await Promise.all([
@@ -261,15 +291,10 @@
 	});
 
 	onDestroy(() => {
-		if (typeof document !== 'undefined') {
-			document.removeEventListener('click', handleClickOutside);
-		}
+
 	});
 
 	// ---------- Standard Actions ----------
-
-
-
 	async function startPrompt() {
 		try {
 			const { data, error } = await supabase.rpc('rpc_generate_prompt_assessment', {
@@ -490,18 +515,25 @@
 					<p class="has-text-danger">{calendarError}</p>
 				{:else}
 					<div class="calendar-inner">
-
+						<div class="calendar-months" aria-hidden="true">
+							{#each monthLabels as m}
+								<div class="month-label">{m}</div>
+							{/each}
+						</div>
 						<!-- Calendar grid -->
 						<div class="calendar-grid">
 							{#each calendarWeeks as week}
-								{#each week as day}
-									<div
-										class="calendar-day"
-										style="background-color: {getCalendarDayColor(day.accuracy)}"
-										on:mousemove={(e) => showTooltip(day, e)}
-										on:mouseleave={hideTooltip}
-									></div>
-								{/each}
+								<div class="calendar-week">
+									{#each week as day}
+										<div
+											class="calendar-day"
+											style="background-color: {day.isDummy ? 'transparent' : getCalendarDayColor(day.accuracy)}; opacity: {day.isDummy ? 0.25 : 1}"
+											class:dummy={day.isDummy}
+											on:mousemove={(e) => !day.isDummy && showTooltip(day, e)}
+											on:mouseleave={hideTooltip}
+										></div>
+									{/each}
+								</div>
 							{/each}
 						</div>
 					</div>
@@ -1022,18 +1054,7 @@
         padding-left: 32px; /* space for Mon/Wed/Fri labels */
     }
 
-    /* Month labels row */
-    .calendar-months {
-        display: grid;
-        grid-auto-flow: column;
-        grid-template-rows: 1fr;
-        grid-auto-columns: 16px;
-        gap: 3px;
-        margin-bottom: 6px;
-        font-size: 0.75rem;
-        color: #666;
-        overflow: visible;
-    }
+
 
     .month-label {
         text-align: left;
@@ -1053,23 +1074,50 @@
         color: #666;
     }
 
+    /* Stretch full width with fixed proportional columns */
+    .calendar-inner {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        position: relative;
+        padding-left: 32px; /* for Mon/Wed/Fri */
+    }
+
+    /* Each of 52 columns should evenly fill width */
     .calendar-grid {
         display: grid;
-        grid-auto-flow: column;
         grid-template-rows: repeat(7, 14px);
-        grid-auto-columns: 14px;
+        grid-template-columns: repeat(52, 1fr);
         gap: 3px;
+        width: 100%;
+    }
+
+    .calendar-months {
+        display: grid;
+        grid-template-columns: repeat(52, 1fr);
+        gap: 3px;
+        margin-bottom: 6px;
+        font-size: 0.75rem;
+        color: #666;
     }
 
     .calendar-day {
         width: 14px;
         height: 14px;
         border-radius: 2px;
+				margin-bottom: 2px;
         cursor: pointer;
         transition: transform 0.1s ease, box-shadow 0.1s ease;
     }
 
-    .calendar-day:hover {
+    .calendar-day.dummy {
+        cursor: default;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    .calendar-day:hover:not(.dummy) {
         transform: scale(1.25);
         box-shadow: 0 0 5px rgba(0,0,0,0.25);
         z-index: 10;
