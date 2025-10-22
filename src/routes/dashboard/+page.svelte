@@ -10,6 +10,45 @@
 	let completedAssessments: any[] = [];
 	let banks: any[] = [];
 
+	// calendar state
+	let calendarData: any[] = [];
+	let calendarWeeks: any[][] = [];
+	let calendarLoading = true;
+	let calendarError = '';
+	let tooltip = { visible: false, x: 0, y: 0, date: '', answered: 0, correct: 0, accuracy: null, avg_rt_ms: null };
+
+	let monthLabels: string[] = [];
+
+	function getCalendarDayColor(acc: number | null): string {
+		if (acc === null || isNaN(acc)) return '#aaaaaa';
+		if (acc < 0.3) return '#d00000';
+		if (acc < 0.5) return '#e36414';
+		if (acc < 0.75) return '#fb8b24';
+		if (acc < 0.8) return '#98c1d9';
+		if (acc < 0.85) return '#4b8a6f';
+		if (acc < 0.9) return '#07f6c3';
+		return '#07f6c3';
+	}
+
+	function showTooltip(day: any, event: MouseEvent) {
+		if (!day.stat_date) return;
+		tooltip = {
+			visible: true,
+			x: event.pageX + 8,
+			y: event.pageY - 8,
+			date: day.stat_date,
+			answered: day.answered,
+			correct: day.correct,
+			accuracy: day.accuracy,
+			avg_rt_ms: day.avg_rt_ms
+		};
+	}
+
+	function hideTooltip() {
+		tooltip.visible = false;
+	}
+
+
 	// Sorting state variables
 	let activeSortBy: 'date' | 'title' | 'type' | 'score' = 'date';
 	let activeSortDir: 'asc' | 'desc' = 'desc';
@@ -147,6 +186,52 @@
 		if (!user?.user_id) {
 			goto('/login');
 			return;
+		}
+
+		// calendar funcs
+		try {
+			const { data, error } = await supabase.rpc('rpc_get_user_calendar_grid', { p_user_id: user.user_id });
+			if (error) throw error;
+			calendarData = data || [];
+
+			// Group by week index
+			const grouped: Record<number, any[]> = {};
+			for (const d of calendarData) {
+				if (!grouped[d.week_index]) grouped[d.week_index] = [];
+				grouped[d.week_index].push(d);
+			}
+
+			const weeks: any[][] = [];
+			for (let i = 0; i < 52; i++) {
+				const weekDays = Array(7)
+					.fill(null)
+					.map((_, dow) => {
+						const found = grouped[i]?.find((x) => x.dow === dow);
+						return found || { accuracy: null, answered: 0, correct: 0, stat_date: '', avg_rt_ms: null };
+					});
+				weeks.push(weekDays);
+			}
+			calendarWeeks = weeks;
+
+			const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+			const startDate = new Date();
+			startDate.setDate(startDate.getDate() - 364); // ~1 year ago
+			monthLabels = new Array(52).fill('');
+
+			let currentMonth = -1;
+			for (let i = 0; i < 52; i++) {
+				const weekStart = new Date(startDate.getTime());
+				weekStart.setDate(startDate.getDate() + i * 7);
+				const m = weekStart.getMonth();
+				if (m !== currentMonth) {
+					monthLabels[i] = months[m];
+					currentMonth = m;
+				}
+			}
+		} catch (err: any) {
+			calendarError = err.message;
+		} finally {
+			calendarLoading = false;
 		}
 
 		if (typeof document !== 'undefined') {
@@ -393,6 +478,70 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- calendar grid goes here -->
+		{#if user?.user_id}
+			<div class="calendar-container mt-6 mb-6">
+				<h3 class="title is-5 mb-3">Activity Calendar</h3>
+
+				{#if calendarLoading}
+					<p>Loading calendar...</p>
+				{:else if calendarError}
+					<p class="has-text-danger">{calendarError}</p>
+				{:else}
+					<div class="calendar-inner">
+
+						<!-- Calendar grid -->
+						<div class="calendar-grid">
+							{#each calendarWeeks as week}
+								{#each week as day}
+									<div
+										class="calendar-day"
+										style="background-color: {getCalendarDayColor(day.accuracy)}"
+										on:mousemove={(e) => showTooltip(day, e)}
+										on:mouseleave={hideTooltip}
+									></div>
+								{/each}
+							{/each}
+						</div>
+					</div>
+
+					<!-- Tooltip -->
+					{#if tooltip.visible}
+						<div
+							class="calendar-tooltip"
+							style="top:{tooltip.y}px; left:{tooltip.x}px"
+						>
+							<strong style="color: #fff!important;">{tooltip.date}</strong><br />
+							Answered: {tooltip.answered}<br />
+							Correct: {tooltip.correct}<br />
+							Accuracy:
+							{tooltip.accuracy !== null
+								? (tooltip.accuracy * 100).toFixed(1) + '%'
+								: 'N/A'}<br />
+							Avg RT:
+							{tooltip.avg_rt_ms !== null
+								? Math.round(tooltip.avg_rt_ms / 1000) + 's'
+								: 'N/A'}
+						</div>
+					{/if}
+
+					<!-- Legend -->
+					<div class="calendar-legend">
+						<span>Poor</span>
+						<div class="legend-swatch" style="background:#d00000"></div>
+						<div class="legend-swatch" style="background:#e36414"></div>
+						<div class="legend-swatch" style="background:#fb8b24"></div>
+						<div class="legend-swatch" style="background:#98c1d9"></div>
+						<div class="legend-swatch" style="background:#57cc99"></div>
+						<div class="legend-swatch" style="background:#02c39a"></div>
+						<div class="legend-swatch" style="background:#06d6a0"></div>
+						<span>Good</span>
+					</div>
+				{/if}
+			</div>
+		{/if}
+		<!-- /calendar grid -->
 
 		{#if loading}
 			<p>Loading your assessments...</p>
@@ -856,6 +1005,103 @@
 		.dropdown-item {
 				background-color: #fff;
 		}
+
+		/*    calendar*/
+    /* === ACTIVITY CALENDAR === */
+
+    .calendar-container {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .calendar-inner {
+        display: inline-block;
+        position: relative;
+        padding-left: 32px; /* space for Mon/Wed/Fri labels */
+    }
+
+    /* Month labels row */
+    .calendar-months {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: 1fr;
+        grid-auto-columns: 16px;
+        gap: 3px;
+        margin-bottom: 6px;
+        font-size: 0.75rem;
+        color: #666;
+        overflow: visible;
+    }
+
+    .month-label {
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    /* Day of week labels */
+    .calendar-dow {
+        position: absolute;
+        left: 0;
+        top: 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: calc(7 * 14px + 6 * 3px);
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(7, 14px);
+        grid-auto-columns: 14px;
+        gap: 3px;
+    }
+
+    .calendar-day {
+        width: 14px;
+        height: 14px;
+        border-radius: 2px;
+        cursor: pointer;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .calendar-day:hover {
+        transform: scale(1.25);
+        box-shadow: 0 0 5px rgba(0,0,0,0.25);
+        z-index: 10;
+    }
+
+    .calendar-tooltip {
+        position: fixed;
+        background: rgba(0,0,0,0.85);
+        color: #fff;
+        padding: 6px 8px;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        pointer-events: none;
+        z-index: 1000;
+        white-space: nowrap;
+    }
+
+    .calendar-legend {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        margin-top: 6px;
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+    }
 
 </style>
 
