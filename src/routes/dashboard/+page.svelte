@@ -19,6 +19,7 @@
 	let activeAssessments: AssessmentCard[] = [];
 	let completedAssessments: AssessmentCard[] = [];
 	let banks: any[] = [];
+	let currentDiscipline: any = null;
 
 	// calendar state
 	let calendarData: any[] = [];
@@ -67,6 +68,7 @@
 	};
 
 	const unsubscribe = userStore.subscribe((v) => (user = v));
+	$: currentDiscipline = user?.currentDiscipline ?? null;
 
 	// dropdown menu
 	let showAnalyticsMenu = false;
@@ -103,11 +105,13 @@
 
 	// ---------- Standard Actions (unchanged) ----------
 	async function startPrompt() {
+		const discipline_name = " for " + user.currentDiscipline.discipline_name;
 		try {
 			const { data, error } = await supabase.rpc('rpc_generate_prompt_assessment', {
 				p_user_id: user.user_id,
 				p_org_id: user.orgs?.[0]?.org_id,
-				p_title: 'Daily Recall Prompt'
+				p_title: 'Daily Recall Prompt' + discipline_name,
+				p_discipline_id: user.currentDiscipline.discipline_id,
 			});
 			if (error) throw error;
 			const instanceId = (data as any)?.instance_id || data;
@@ -118,12 +122,14 @@
 	}
 
 	async function startShortQuiz() {
+		const discipline_name = " for " + user.currentDiscipline.discipline_name;
 		try {
 			const { data, error } = await supabase.rpc('rpc_generate_standard_assessment', {
 				p_user_id: user.user_id,
 				p_org_id: user.orgs?.[0]?.org_id,
 				p_total: 10,
-				p_title: 'Short Quiz'
+				p_title: 'Short Quiz' + discipline_name,
+				p_discipline_id: user.currentDiscipline.discipline_id,
 			});
 			if (error) throw error;
 			const instanceId = (data as any)?.instance_id || data;
@@ -134,12 +140,14 @@
 	}
 
 	async function startAdaptiveQuiz() {
+		const discipline_name = " for " + user.currentDiscipline.discipline_name;
 		try {
 			const { data, error } = await supabase.rpc('rpc_generate_adaptive_assessment', {
 				p_user_id: user.user_id,
 				p_org_id: user.orgs?.[0]?.org_id,
 				p_total: 15,
-				p_title: 'Adaptive Diagnostic Quiz'
+				p_title: 'Adaptive Diagnostic Quiz' + discipline_name,
+				p_discipline_id: user.currentDiscipline.discipline_id,
 			});
 			if (error) throw error;
 			const instanceId = (data as any)?.instance_id || data;
@@ -150,11 +158,13 @@
 	}
 
 	async function startMockExam() {
+		const discipline_name = " for " + user.currentDiscipline.discipline_name;
 		try {
 			const { data, error } = await supabase.rpc('rpc_generate_mock_exam', {
 				p_user_id: user.user_id,
 				p_org_id: user.orgs?.[0]?.org_id,
-				p_title: 'Mock Exam'
+				p_title: 'Mock Exam' + discipline_name,
+				p_discipline_id: user.currentDiscipline.discipline_id,
 			});
 			if (error) throw error;
 			const instanceId = (data as any)?.instance_id || data;
@@ -244,7 +254,8 @@
 		// calendar
 		try {
 			const { data: rawCalendarData, error: calErr } = await supabase.rpc('rpc_get_user_calendar_grid', {
-				p_user_id: user.user_id
+				p_user_id: user.user_id,
+
 			});
 			if (calErr) throw calErr;
 
@@ -354,6 +365,7 @@
 
 		<!-- Assessments list now uses component; all state+callbacks come from this page -->
 		<AssessmentsList
+			{currentDiscipline}
 			loading={loading}
 			error={error}
 			{activeAssessments}

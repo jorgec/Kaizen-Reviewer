@@ -9,6 +9,10 @@
 	import { filterByType, sortAssessments, getMasteryColor } from './utils';
 	import { formatHuman } from '$lib/datetime';
 
+	export let currentDiscipline: { discipline_id: number; discipline_name: string } | null = null;
+	let restrictActiveToDiscipline = false;
+	let restrictCompletedToDiscipline = false;
+
 	// Data and state (all owned by the parent, passed down)
 	export let loading = false;
 	export let error: string | null = null;
@@ -38,8 +42,23 @@
 	// Derived
 	$: filteredActive = filterByType(activeAssessments, activeTypeFilters);
 	$: filteredCompleted = filterByType(completedAssessments, completedTypeFilters);
-	$: sortedActive = sortAssessments(filteredActive, activeSortBy, activeSortDir).slice(0, activeShowCount);
-	$: sortedCompleted = sortAssessments(filteredCompleted, completedSortBy, completedSortDir).slice(0, completedShowCount);
+
+	// Discipline restriction filters
+	$: disciplineFilteredActive = restrictActiveToDiscipline && currentDiscipline
+		? filteredActive.filter(
+			(a) => a.settings?.discipline?.id === currentDiscipline.discipline_id
+		)
+		: filteredActive;
+
+	$: disciplineFilteredCompleted = restrictCompletedToDiscipline && currentDiscipline
+		? filteredCompleted.filter(
+			(a) => a.settings?.discipline?.id === currentDiscipline.discipline_id
+		)
+		: filteredCompleted;
+
+	// Sorting logic remains the same, but now use disciplineFiltered*
+	$: sortedActive = sortAssessments(disciplineFilteredActive, activeSortBy, activeSortDir).slice(0, activeShowCount);
+	$: sortedCompleted = sortAssessments(disciplineFilteredCompleted, completedSortBy, completedSortDir).slice(0, completedShowCount);
 </script>
 
 {#if loading}
@@ -50,6 +69,7 @@
 	<!-- Active -->
 	<div class="list-header mt-5 mb-2">
 		<h3 class="title is-5 mb-0">Active Assessments</h3>
+
 		<div class="sort-controls">
 			<label for="active-sort-select" class="is-sr-only">Sort Active Assessments</label>
 			<select id="active-sort-select" bind:value={activeSortBy} class="select is-small mr-2" aria-label="Sort active">
@@ -58,6 +78,7 @@
 				<option value="type">By Type</option>
 				<option value="score">By Score</option>
 			</select>
+
 			<button class="button is-small" type="button" aria-label="Toggle sort direction" on:click={() => onToggleSort('active')}>
 				{#if activeSortDir === 'asc'}<span>▲</span>{:else}<span>▼</span>{/if}
 			</button>
@@ -75,6 +96,15 @@
 				<span>{label}</span>
 			</label>
 		{/each}
+		<span class="discipline-toggle">
+			<label class="checkbox-label">
+				<input
+					type="checkbox"
+					bind:checked={restrictActiveToDiscipline}
+				/>
+				<span>Restrict to Discipline</span>
+			</label>
+		</span>
 	</div>
 
 	{#if sortedActive.length === 0}
@@ -103,6 +133,10 @@
 
 						{#if a.score !== undefined && a.score !== null}
 							<p class="is-size-7 mt-2">Current Score: {a.score}%</p>
+						{/if}
+
+						{#if a.settings?.discipline?.name}
+							<p class="is-size-7 mt-2">Discipline: {a.settings?.discipline?.name}</p>
 						{/if}
 
 						<p class="is-size-7 mt-2">Assigned: {formatHuman(a.assigned_at, { timeZone: 'Asia/Manila' })}</p>
@@ -149,6 +183,15 @@
 				<span>{label}</span>
 			</label>
 		{/each}
+		<span class="discipline-toggle">
+			<label class="checkbox-label">
+				<input
+					type="checkbox"
+					bind:checked={restrictCompletedToDiscipline}
+				/>
+				<span>Restrict to Discipline</span>
+			</label>
+		</span>
 	</div>
 
 	{#if sortedCompleted.length === 0}
@@ -169,6 +212,10 @@
 								<span class="is-size-7">Score: {c.score}%</span>
 								<span class="is-size-7">{c.raw_score !== undefined && c.total_items ? `(${c.raw_score}/${c.total_items})` : ''}</span>
 							</div>
+
+							{#if c.settings?.discipline?.name}
+								<p class="is-size-7 mt-2">Discipline: {c.settings?.discipline?.name}</p>
+							{/if}
 
 							{#if c.completed_at}
 								<p class="is-size-7 mt-2">Completed: {formatHuman(c.completed_at, { timeZone: 'Asia/Manila' })}</p>

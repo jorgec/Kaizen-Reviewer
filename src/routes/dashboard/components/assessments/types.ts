@@ -16,6 +16,7 @@ export type AssessmentCard = {
 	completed_at?: string | null;
 	duration_seconds?: number | null;
 	parent_id?: string | null;
+	settings?: object | null;
 };
 
 export type SortDir = 'asc' | 'desc';
