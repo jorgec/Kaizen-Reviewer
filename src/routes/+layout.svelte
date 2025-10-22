@@ -19,18 +19,26 @@
 		// Sync user from localStorage if available
 		if (typeof window !== 'undefined') {
 			const saved = localStorage.getItem('user');
-			if (saved) userStore.set(JSON.parse(saved));
 
-			// Handle scroll-based navbar shrink effect
+			// Only restore from localStorage if store is still empty
+			userStore.subscribe((u) => {
+				user = u;
+
+				// Once user is defined (first valid login load), ensure current fields
+				if (user && !user.currentDiscipline && user.disciplines?.length) {
+					userStore.ensureCurrentDiscipline();
+				}
+
+				if (user && !user.currentOrg && user.orgs?.length) {
+					userStore.ensureCurrentOrg();
+				}
+			});
+
+			if (!user?.user_id && saved) {
+				userStore.set(JSON.parse(saved));
+			}
+
 			window.addEventListener('scroll', handleScroll);
-
-			if (user?.disciplines?.length) {
-				userStore.ensureCurrentDiscipline();
-			}
-
-			if (user?.orgs?.length) {
-				userStore.ensureCurrentOrg();
-			}
 		}
 	});
 
