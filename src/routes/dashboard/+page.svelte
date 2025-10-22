@@ -16,7 +16,7 @@
 	let calendarWeeks: any[][] = [];
 	let calendarLoading = true;
 	let calendarError = '';
-	let tooltip = { visible: false, x: 0, y: 0, date: '', answered: 0, correct: 0, accuracy: null, avg_rt_ms: null };
+	let tooltip = { visible: false, x: 0, y: 0, date: '', dow: '', week: '', answered: 0, correct: 0, accuracy: null, avg_rt_ms: null };
 
 	let monthLabels: string[] = [];
 
@@ -38,6 +38,8 @@
 			x: event.pageX + 8,
 			y: event.pageY - 8,
 			date: day.stat_date,
+			dow: day.dow,
+			week: day.week_index,
 			answered: day.answered,
 			correct: day.correct,
 			accuracy: day.accuracy,
@@ -545,6 +547,7 @@
 							style="top:{tooltip.y}px; left:{tooltip.x}px"
 						>
 							<strong style="color: #fff!important;">{tooltip.date}</strong><br />
+							Week/DOW: {tooltip.week}/{tooltip.dow}<br />
 							Answered: {tooltip.answered}<br />
 							Correct: {tooltip.correct}<br />
 							Accuracy:
