@@ -7,6 +7,7 @@
 	let selectedDisciplineId: number | null = null;
 	let selectedOrgId: string = '';
 	let scrolled = false;
+	let drawerOpen = false;
 
 	const unsubscribe = userStore.subscribe((value) => {
 		user = value;
@@ -47,6 +48,7 @@
 		if (!value) return;
 		userStore.setCurrentDisciplineById(value);
 		selectedDisciplineId = value;
+		closeDrawer();
 	}
 
 	function handleOrgChange(e: Event) {
@@ -54,6 +56,7 @@
 		if (!value) return;
 		userStore.setCurrentOrgById(value);
 		selectedOrgId = value;
+		closeDrawer();
 	}
 
 	onDestroy(() => {
@@ -76,10 +79,19 @@
 			orgs: [],
 			roles: []
 		});
+		closeDrawer();
 		if (typeof window !== 'undefined') {
 			localStorage.removeItem('user');
 			window.location.href = '/';
 		}
+	}
+
+	function toggleDrawer() {
+		drawerOpen = !drawerOpen;
+	}
+
+	function closeDrawer() {
+		drawerOpen = false;
 	}
 
 	$: selectedDisciplineId = user?.currentDiscipline?.discipline_id ?? null;
@@ -98,8 +110,40 @@
 			<h1 class="title is-5" style="margin: 0; color: #eee">Kaizen</h1>
 		</a>
 
+		<!-- Hamburger button visible on small screens -->
 		{#if user?.display_name}
-			<div class="is-flex is-align-items-center">
+			<button
+				class="button is-dark is-medium hamburger-button"
+				aria-label="Toggle menu"
+				on:click={toggleDrawer}
+				aria-expanded={drawerOpen}
+				aria-controls="drawer-menu"
+				type="button"
+			>
+				<span class="icon">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="feather feather-menu"
+					>
+						<line x1="3" y1="12" x2="21" y2="12"></line>
+						<line x1="3" y1="6" x2="21" y2="6"></line>
+						<line x1="3" y1="18" x2="21" y2="18"></line>
+					</svg>
+				</span>
+			</button>
+		{/if}
+
+		<!-- Desktop menu visible on large screens -->
+		{#if user?.display_name}
+			<div class="desktop-menu is-flex is-align-items-center">
 				{#if user?.orgs && user.orgs.length > 1}
 					<div class="org-select">
 						<select
@@ -139,6 +183,64 @@
 	</div>
 </nav>
 
+<!-- Drawer and overlay for small screens -->
+{#if drawerOpen}
+	<div class="drawer-overlay" on:click={closeDrawer} aria-hidden="true"></div>
+{/if}
+<aside
+	id="drawer-menu"
+	class:drawer-open={drawerOpen}
+	class="drawer-menu has-background-dark"
+	role="menu"
+	aria-hidden={!drawerOpen}
+>
+	{#if user?.display_name}
+		<nav class="menu-content">
+			{#if user?.orgs && user.orgs.length > 1}
+				<div class="menu-item">
+					<label for="drawer-org-select" class="menu-label">Organization</label>
+					<select
+						id="drawer-org-select"
+						class="select"
+						on:change={handleOrgChange}
+						bind:value={selectedOrgId}
+					>
+						{#each user.orgs as d}
+							<option value={d.org_id}>
+								{d.org_name ?? d.org_code ?? d.org_id}
+							</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+
+			{#if user?.disciplines && user.disciplines.length > 1}
+				<div class="menu-item">
+					<label for="drawer-discipline-select" class="menu-label">Discipline</label>
+					<select
+						id="drawer-discipline-select"
+						class="select"
+						on:change={handleDisciplineChange}
+						bind:value={selectedDisciplineId}
+					>
+						{#each user.disciplines as d}
+							<option value={d.discipline_id}>
+								{d.discipline_name ?? d.discipline_code ?? d.discipline_id}
+							</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+
+			<div class="menu-item">
+				<button class="button is-danger is-fullwidth" on:click={logout}>
+					Log out ({user.display_name})
+				</button>
+			</div>
+		</nav>
+	{/if}
+</aside>
+
 <section class="section">
 	<div class="container">
 		<slot />
@@ -146,42 +248,100 @@
 </section>
 
 <style>
-    .app-topbar {
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: .5rem .75rem;
-        background: rgba(255, 255, 255, .9);
-        backdrop-filter: blur(6px);
-        border-bottom: 1px solid rgba(0, 0, 0, .06);
-    }
+	.navbar {
+		transition: background-color 0.3s ease, box-shadow 0.3s ease;
+	}
 
-    .brand {
-        font-weight: 700;
-        color: inherit;
-        text-decoration: none
-    }
+	.hamburger-button {
+		display: none;
+	}
 
-    .right {
-        display: flex;
-        align-items: center;
-        gap: .5rem
-    }
+	.desktop-menu {
+		display: flex;
+		gap: 0.75rem;
+	}
 
-    .discipline-select select {
-        min-width: 180px;
-        padding: .25rem .75rem;
-    }
+	/* Drawer styles */
+	.drawer-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: 20;
+	}
 
-    .discipline-pill {
-        padding: .15rem .6rem;
-        background: #f2f4f7;
-        font-size: .85rem;
-    }
+	.drawer-menu {
+		position: fixed;
+		top: 0;
+		right: 0;
+		height: 100vh;
+		width: 260px;
+		background-color: #222;
+		color: #eee;
+		transform: translateX(100%);
+		transition: transform 0.3s ease;
+		z-index: 30;
+		padding: 1.5rem 1rem;
+		display: flex;
+		flex-direction: column;
+	}
 
+	.drawer-open {
+		transform: translateX(0);
+	}
+
+	.menu-content {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.menu-label {
+		font-weight: 600;
+		margin-bottom: 0.25rem;
+		display: block;
+		color: #ddd;
+	}
+
+	.menu-item select.select {
+		width: 100%;
+	}
+
+	.menu-item button {
+		font-weight: 600;
+	}
+
+	/* Responsive styles */
+	@media (max-width: 768px) {
+		.hamburger-button {
+			display: inline-flex;
+		}
+
+		.desktop-menu {
+			display: none !important;
+		}
+	}
+
+	@media (min-width: 769px) {
+		.drawer-menu,
+		.drawer-overlay {
+			display: none;
+		}
+	}
+
+	.org-select select,
+	.discipline-select select {
+		min-width: 180px;
+		padding: 0.25rem 0.75rem;
+	}
+
+	.discipline-pill {
+		padding: 0.15rem 0.6rem;
+		background: #f2f4f7;
+		font-size: 0.85rem;
+	}
 </style>
 
 <script context="module" lang="ts">
