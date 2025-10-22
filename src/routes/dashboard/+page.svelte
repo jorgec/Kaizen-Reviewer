@@ -244,21 +244,19 @@
 		}
 	}
 
-	// ---------- Data fetch (unchanged endpoints/handling) ----------
-	onMount(async () => {
-		if (!user?.user_id) {
-			goto('/login');
-			return;
-		}
 
-		// calendar
+	// Refactored: calendar load logic
+	async function loadCalendar() {
+		if (!user?.user_id || !currentDiscipline?.discipline_id) return;
+		calendarLoading = true;
+		calendarError = '';
 		try {
 			const { data: rawCalendarData, error: calErr } = await supabase.rpc('rpc_get_user_calendar_grid', {
 				p_user_id: user.user_id,
-
+				p_discipline_id: currentDiscipline?.discipline_id,
+				p_weeks: 52
 			});
 			if (calErr) throw calErr;
-
 			calendarData = rawCalendarData || [];
 			calendarWeeks = buildCalendarGridFixed(calendarData);
 			monthLabels = buildMonthLabels(calendarWeeks);
@@ -267,6 +265,22 @@
 		} finally {
 			calendarLoading = false;
 		}
+	}
+
+	// Reload calendar when discipline changes
+	$: if (currentDiscipline && user?.user_id) {
+		loadCalendar();
+	}
+
+	// ---------- Data fetch (unchanged endpoints/handling) ----------
+	onMount(async () => {
+		if (!user?.user_id) {
+			goto('/login');
+			return;
+		}
+
+		// calendar
+		await loadCalendar();
 
 		// dropdown outside click – browser only
 		if (browser) {
