@@ -52,389 +52,826 @@
 		// Force Svelte to notice the change to an item inside the array
 		results = [...results];
 	}
+
+	// Get muted score color based on calendar legend
+	function getMutedScoreColor(score: number): string {
+		if (score < 30) return '#d88888'; // muted red
+		if (score < 50) return '#e8a876'; // muted orange
+		if (score < 75) return '#f5c97f'; // muted amber
+		if (score < 80) return '#a8c8d9'; // muted light blue
+		if (score < 85) return '#7ba894'; // muted teal
+		if (score < 90) return '#81d4c4'; // muted cyan
+		return '#9cb89f'; // muted green
+	}
+
+	// Get accent color (slightly more saturated for borders/accents)
+	function getScoreAccent(score: number): string {
+		if (score < 30) return '#d00000';
+		if (score < 50) return '#e36414';
+		if (score < 75) return '#fb8b24';
+		if (score < 80) return '#98c1d9';
+		if (score < 85) return '#4b8a6f';
+		if (score < 90) return '#07f6c3';
+		return '#2d6a4f';
+	}
 </script>
 
-<section class="section">
-	<div class="container">
-		{#if loading}
-			<p class="has-text-centered">Loading results...</p>
-		{:else if error}
-			<p class="has-text-danger has-text-centered">{error}</p>
-		{:else if results.length === 0}
-			<p class="has-text-centered">No results found for this assessment.</p>
-		{:else}
-			<!-- Summary Card -->
-			<div class="summary-card has-text-centered">
-				<div class="trophy" aria-hidden="true">🏆</div>
-				<h2 class="title is-4">Assessment Summary</h2>
-				<p class="score">{summary.score}%</p>
-				<p class="is-size-6">{summary.correct} / {summary.total} correct</p>
+<div class="results-container">
+	{#if loading}
+		<div class="loading-state">
+			<div class="loading-card">
+				<div class="spinner-wrapper">
+					<div class="spinner"></div>
+				</div>
+				<p class="loading-text">Loading results...</p>
+			</div>
+		</div>
+	{:else if error}
+		<div class="error-state">
+			<div class="error-card">
+				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="10"></circle>
+					<line x1="12" y1="8" x2="12" y2="12"></line>
+					<line x1="12" y1="16" x2="12.01" y2="16"></line>
+				</svg>
+				<p class="error-message">{error}</p>
+				<a href="/dashboard" class="modern-button secondary">Return to Dashboard</a>
+			</div>
+		</div>
+	{:else if results.length === 0}
+		<div class="empty-state">
+			<div class="empty-card">
+				<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+					<polyline points="14 2 14 8 20 8"></polyline>
+				</svg>
+				<p class="empty-message">No results found for this assessment.</p>
+				<a href="/dashboard" class="modern-button secondary">Return to Dashboard</a>
+			</div>
+		</div>
+	{:else}
+		<!-- Summary Card with Score-Based Styling -->
+		<div class="summary-card" style="border-top: 6px solid {getScoreAccent(summary.score)};">
+			<div class="summary-header">
+				<div class="score-circle" style="background: linear-gradient(135deg, {getMutedScoreColor(summary.score)}, {getScoreAccent(summary.score)}); box-shadow: 0 8px 24px {getScoreAccent(summary.score)}40;">
+					<div class="score-value">{summary.score}%</div>
+				</div>
+				<h2 class="summary-title">Assessment Complete</h2>
+				<p class="summary-subtitle">{summary.correct} out of {summary.total} questions correct</p>
+			</div>
 
-				{#if results.length >= 10}
-					<!-- Detailed Summary Table -->
-					<hr style="margin: 1rem 0;" />
-					<h3 class="title is-6 mb-3">Performance Breakdown</h3>
-					<table class="table is-fullwidth is-striped is-narrow">
-						<thead>
-						<tr>
-							<th>Difficulty</th>
-							<th>Correct</th>
-							<th>Total</th>
-							<th>Accuracy</th>
-						</tr>
-						</thead>
-						<tbody>
+			{#if results.length >= 10}
+				<!-- Detailed Summary Table -->
+				<div class="breakdown-section">
+					<h3 class="breakdown-title">Performance Breakdown</h3>
+					<div class="breakdown-grid">
 						{#each ['easy', 'medium', 'hard'] as level}
 							{@const subset = results.filter(r => r.difficulty === level)}
 							{@const correct = subset.filter(r => r.is_user_correct).length}
 							{@const total = subset.length}
-							<tr>
-								<td class="has-text-weight-semibold text-capitalize">{level}</td>
-								<td>{correct}</td>
-								<td>{total}</td>
-								<td>{total > 0 ? ((correct / total) * 100).toFixed(1) + '%' : '—'}</td>
-							</tr>
-						{/each}
-						</tbody>
-					</table>
-
-					<!-- Weak Areas -->
-					{#if results.length >= 10}
-						{@const groupBy = (key) => {
-							const groups = {};
-							for (const r of results) {
-								const k = r[key];
-								if (!k) continue;
-								if (!groups[k]) groups[k] = { total: 0, correct: 0 };
-								groups[k].total++;
-								if (r.is_user_correct) groups[k].correct++;
-							}
-							return Object.entries(groups)
-								.map(([label, g]) => ({ label, acc: (g.correct / g.total) * 100, total: g.total }))
-								.filter(g => g.acc < 70 && g.total >= 2)  // at least 1 attempt
-								.sort((a, b) => a.acc - b.acc);
-						}}
-
-						{@const weakSubjects = groupBy('subject')}
-						{@const weakTopics = groupBy('topic')}
-						{@const weakSubs = groupBy('subtopic')}
-
-						<!-- Weak Areas -->
-						<div class="weak-area-list">
-							{#if weakSubjects.length > 0}
-								<h4 class="subtitle is-7 mt-3">By Subject</h4>
-								<div class="weak-area-grid">
-									{#each weakSubjects as s}
-										<div class="weak-card">
-											<p class="weak-label">{s.label}</p>
-											<p class="weak-acc">{s.acc.toFixed(1)}%</p>
-										</div>
-									{/each}
+							{@const accuracy = total > 0 ? (correct / total) * 100 : 0}
+							<div class="breakdown-card">
+								<div class="breakdown-header">
+									<span class="breakdown-level">{level}</span>
+									<span class="breakdown-accuracy" style="color: {getScoreAccent(accuracy)};">{total > 0 ? accuracy.toFixed(1) + '%' : '—'}</span>
 								</div>
-							{/if}
-
-							{#if weakTopics.length > 0}
-								<h4 class="subtitle is-7 mt-3">By Topic</h4>
-								<div class="weak-area-grid">
-									{#each weakTopics as t}
-										<div class="weak-card">
-											<p class="weak-label">{t.label}</p>
-											<p class="weak-acc">{t.acc.toFixed(1)}%</p>
-										</div>
-									{/each}
+								<div class="breakdown-stats">
+									<span>{correct} / {total}</span>
 								</div>
-							{/if}
-
-							<!--{#if weakSubs.length > 0}-->
-							<!--	<h4 class="subtitle is-7 mt-3">By Subtopic</h4>-->
-							<!--	<div class="weak-area-grid">-->
-							<!--		{#each weakSubs as st}-->
-							<!--			<div class="weak-card">-->
-							<!--				<p class="weak-label">{st.label}</p>-->
-							<!--				<p class="weak-acc">{st.acc.toFixed(1)}%</p>-->
-							<!--			</div>-->
-							<!--		{/each}-->
-							<!--	</div>-->
-							<!--{/if}-->
-						</div>
-					{/if}
-				{/if}
-
-				<a href="/dashboard" class="button is-primary mt-4">Return to Dashboard</a>
-			</div>
-
-			<!-- Results List -->
-			<div class="results-list">
-				{#each results as r, i}
-					<div class="card question-card {r.is_user_correct ? 'correct' : 'incorrect'}">
-						<div class="card-content">
-							<p class="question-index">Question {i + 1}</p>
-							<p class="question-stem">{r.stem}</p>
-
-							<p class="user-answer">
-								{#if r.is_user_correct}
-									<span class="has-text-success">✅ Your Answer: {r.user_choice} — {r.user_choice_text}</span>
-								{:else}
-									<span class="has-text-danger">❌ Your Answer: {r.user_choice} — {r.user_choice_text}</span>
-								{/if}
-							</p>
-
-							<button
-								type="button"
-								class="button is-small is-light toggle-btn"
-								aria-expanded={r.showCorrect}
-								aria-controls={`correct-${i}`}
-								on:click={() => toggleCorrect(i)}
-							>
-								{r.showCorrect ? 'Hide Correct Answer' : 'Show Correct Answer'}
-							</button>
-
-							{#if r.showCorrect}
-								<div class="correct-answer" id={`correct-${i}`}>
-									<p>
-										<strong>✅ Correct:</strong> {r.correct_label} — {r.correct_text}
-									</p>
-									{#if r.explanation}
-										<p class="explanation">{r.explanation}</p>
-									{/if}
-								</div>
-							{/if}
-
-							<div class="tags">
-								{#if r.subject}
-									<span class="tag is-light">{r.subject}</span>
-								{/if}
-								{#if r.topic}
-									<span class="tag is-info is-light">{r.topic}</span>
-								{/if}
-								{#if r.subtopic}
-									<span class="tag is-link is-light">{r.subtopic}</span>
-								{/if}
-								{#if r.difficulty}
-									<span
-										class="tag {r.difficulty === 'easy'
-											? 'is-success'
-											: r.difficulty === 'medium'
-											? 'is-warning'
-											: 'is-danger'}"
-									>
-										{r.difficulty}
-									</span>
-								{/if}
 							</div>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Weak Areas -->
+				{@const groupBy = (key) => {
+					const groups = {};
+					for (const r of results) {
+						const k = r[key];
+						if (!k) continue;
+						if (!groups[k]) groups[k] = { total: 0, correct: 0 };
+						groups[k].total++;
+						if (r.is_user_correct) groups[k].correct++;
+					}
+					return Object.entries(groups)
+						.map(([label, g]) => ({ label, acc: (g.correct / g.total) * 100, total: g.total }))
+						.filter(g => g.acc < 70 && g.total >= 2)
+						.sort((a, b) => a.acc - b.acc);
+				}}
+
+				{@const weakSubjects = groupBy('subject')}
+				{@const weakTopics = groupBy('topic')}
+
+				{#if weakSubjects.length > 0 || weakTopics.length > 0}
+					<div class="weak-areas-section">
+						<h3 class="weak-areas-title">Areas to Improve</h3>
+
+						{#if weakSubjects.length > 0}
+							<h4 class="weak-category">By Subject</h4>
+							<div class="weak-grid">
+								{#each weakSubjects as s}
+									<div class="weak-card" style="border-left: 3px solid {getScoreAccent(s.acc)};">
+										<p class="weak-label">{s.label}</p>
+										<p class="weak-acc" style="color: {getScoreAccent(s.acc)};">{s.acc.toFixed(1)}%</p>
+									</div>
+								{/each}
+							</div>
+						{/if}
+
+						{#if weakTopics.length > 0}
+							<h4 class="weak-category">By Topic</h4>
+							<div class="weak-grid">
+								{#each weakTopics as t}
+									<div class="weak-card" style="border-left: 3px solid {getScoreAccent(t.acc)};">
+										<p class="weak-label">{t.label}</p>
+										<p class="weak-acc" style="color: {getScoreAccent(t.acc)};">{t.acc.toFixed(1)}%</p>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+			{/if}
+
+			<div class="summary-footer">
+				<a href="/dashboard" class="modern-button primary">Return to Dashboard</a>
+			</div>
+		</div>
+
+		<!-- Results List -->
+		<div class="results-list">
+			{#each results as r, i}
+				<div class="question-card {r.is_user_correct ? 'correct' : 'incorrect'}">
+					<div class="question-header">
+						<span class="question-number">Question {i + 1}</span>
+						<div class="result-badge {r.is_user_correct ? 'correct' : 'incorrect'}">
+							{#if r.is_user_correct}
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12"></polyline>
+								</svg>
+								<span>Correct</span>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+									<line x1="18" y1="6" x2="6" y2="18"></line>
+									<line x1="6" y1="6" x2="18" y2="18"></line>
+								</svg>
+								<span>Incorrect</span>
+							{/if}
 						</div>
 					</div>
-				{/each}
-			</div>
-		{/if}
-	</div>
-</section>
+
+					<h3 class="question-stem">{r.stem}</h3>
+
+					<div class="answer-section">
+						<div class="user-answer {r.is_user_correct ? 'correct' : 'incorrect'}">
+							<span class="answer-label">Your Answer:</span>
+							<span class="answer-text">{r.user_choice}. {r.user_choice_text}</span>
+						</div>
+
+						<button
+							type="button"
+							class="toggle-button"
+							aria-expanded={r.showCorrect}
+							aria-controls={`correct-${i}`}
+							on:click={() => toggleCorrect(i)}
+						>
+							{#if r.showCorrect}
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="18 15 12 9 6 15"></polyline>
+								</svg>
+								<span>Hide Explanation</span>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="6 9 12 15 18 9"></polyline>
+								</svg>
+								<span>Show Explanation</span>
+							{/if}
+						</button>
+
+						{#if r.showCorrect}
+							<div class="explanation-box" id={`correct-${i}`}>
+								<div class="correct-answer-section">
+									<span class="answer-label">Correct Answer:</span>
+									<span class="answer-text">{r.correct_label}. {r.correct_text}</span>
+								</div>
+								{#if r.explanation}
+									<div class="explanation-text">
+										<div class="explanation-header">
+											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+												<circle cx="12" cy="12" r="10"></circle>
+												<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+												<line x1="12" y1="17" x2="12.01" y2="17"></line>
+											</svg>
+											<span>Explanation</span>
+										</div>
+										<p>{r.explanation}</p>
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
+
+					<div class="question-meta">
+						{#if r.subject}
+							<span class="meta-tag subject">{r.subject}</span>
+						{/if}
+						{#if r.topic}
+							<span class="meta-tag topic">{r.topic}</span>
+						{/if}
+						{#if r.subtopic}
+							<span class="meta-tag subtopic">{r.subtopic}</span>
+						{/if}
+						{#if r.difficulty}
+							<span class="meta-tag difficulty {r.difficulty}">
+								{r.difficulty}
+							</span>
+						{/if}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
+</div>
 
 <style>
-    .section {
-        padding: 1.5rem 0.75rem;
+    /* Container */
+    .results-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #faf9fc 0%, #f5f3f7 100%);
+        padding: 2rem 1rem;
     }
 
-    .summary-card {
-        background: #fff;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        /*max-width: 90%;*/
-        margin: 0 auto 2rem;
-    }
-
-    .summary-card .trophy {
-        font-size: 2.5rem;
-        line-height: 1;
-        margin-bottom: 0.5rem;
-    }
-
-    .summary-card .score {
-        font-size: 2.2rem;
-        font-weight: 700;
-        margin: 0.5rem 0;
-    }
-
-    .results-list {
+    /* Loading State */
+    .loading-state,
+    .error-state,
+    .empty-state {
+        min-height: 60vh;
         display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
+        align-items: center;
+        justify-content: center;
     }
 
-    .question-card {
-        border-radius: 12px;
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-        padding: 1.25rem 1rem;
+    .loading-card,
+    .error-card,
+    .empty-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        max-width: 500px;
+        width: 100%;
     }
 
-    .question-card.correct {
-        border-left: 4px solid #2a9d8f;
+    .spinner-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.5rem;
     }
 
-    .question-card.incorrect {
-        border-left: 4px solid #e76f51;
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f3f4f6;
+        border-top-color: #8b5cf6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
     }
 
-    .question-index {
-        font-size: 0.9rem;
-        color: #999;
-        margin-bottom: 0.3rem;
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 
-    .question-stem {
-        font-weight: 600;
+    .loading-text,
+    .empty-message {
+        font-family: 'Inter', sans-serif;
         font-size: 1rem;
-        margin-bottom: 0.75rem;
-        line-height: 1.5;
+        color: #6b7280;
+        margin: 0;
     }
 
-    .user-answer {
-        margin-bottom: 0.75rem;
-        font-size: 0.95rem;
+    .error-card svg {
+        color: #ef4444;
+        margin-bottom: 1.5rem;
     }
 
-    .toggle-btn {
-        font-size: 0.85rem;
-        margin-bottom: 0.75rem;
+    .empty-card svg {
+        color: #9ca3af;
+        margin-bottom: 1.5rem;
     }
 
-    .correct-answer {
-        background: rgba(42, 157, 143, 0.1);
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        margin-bottom: 0.75rem;
+    .error-message {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: #dc2626;
+        margin: 0 0 2rem 0;
     }
 
-    .correct-answer p {
-        margin: 0.3rem 0;
+    /* Modern Buttons */
+    .modern-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.875rem 2rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
     }
 
-    .explanation {
-        font-size: 0.9rem;
-        color: #444;
+    .modern-button.primary {
+        background: linear-gradient(90deg, #a855f7, #8b5cf6);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
     }
 
-    .tags {
+    .modern-button.primary:hover {
+        background: linear-gradient(90deg, #9333ea, #7c3aed);
+        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+        transform: translateY(-2px);
+    }
+
+    .modern-button.secondary {
+        background: #ffffff;
+        color: #8b5cf6;
+        border: 2px solid #e5e7eb;
+    }
+
+    .modern-button.secondary:hover {
+        background: #faf9fc;
+        border-color: #8b5cf6;
+    }
+
+    /* Summary Card */
+    .summary-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .summary-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .score-circle {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        position: relative;
     }
 
-    .tag {
-        font-size: 0.8rem;
+    .score-value {
+        font-family: 'Inter', sans-serif;
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #ffffff;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
-    @media (max-width: 768px) {
-        .section {
-            padding: 1rem 0.75rem;
-        }
-
-        .summary-card {
-            padding: 1.25rem;
-        }
-
-        .question-card {
-            padding: 1rem;
-        }
-
-        .question-stem {
-            font-size: 0.95rem;
-        }
+    .summary-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.5rem 0;
     }
 
-    .summary-card table {
-        margin-top: 0.75rem;
-        font-size: 0.9rem;
+    .summary-subtitle {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.125rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    /* Breakdown Section */
+    .breakdown-section {
+        margin: 2rem 0;
+        padding: 2rem 0;
+        border-top: 2px solid #f3f4f6;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    .breakdown-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 1.5rem 0;
         text-align: center;
     }
 
-    .summary-card th,
-    .summary-card td {
-        padding: 0.4rem 0.6rem;
+    .breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
     }
 
-    /* ============================================================
-   Weak Area Grid Styling
-   ============================================================ */
+    .breakdown-card {
+        background: #faf9fc;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+    }
 
-    .weak-area-list {
-        margin-top: 1rem;
+    .breakdown-card:hover {
+        border-color: #8b5cf6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+    }
+
+    .breakdown-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .breakdown-level {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: capitalize;
+    }
+
+    .breakdown-accuracy {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .breakdown-stats {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #9ca3af;
+    }
+
+    /* Weak Areas Section */
+    .weak-areas-section {
+        margin: 2rem 0;
+    }
+
+    .weak-areas-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 1.5rem 0;
+    }
+
+    .weak-category {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 1.5rem 0 0.75rem 0;
+    }
+
+    .weak-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .weak-card {
+        background: #ffffff;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        transition: all 0.2s ease;
+    }
+
+    .weak-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .weak-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #374151;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .weak-acc {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.125rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    /* Summary Footer */
+    .summary-footer {
+        margin-top: 2.5rem;
+        text-align: center;
+    }
+
+    /* Results List */
+    .results-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    /* Question Card */
+    .question-card {
+        background: #ffffff;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .question-card.correct {
+        border-left: 4px solid #10b981;
+    }
+
+    .question-card.incorrect {
+        border-left: 4px solid #ef4444;
+    }
+
+    .question-card:hover {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .question-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .question-number {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #9ca3af;
+    }
+
+    .result-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+
+    .result-badge.correct {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .result-badge.incorrect {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .question-stem {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #111827;
+        line-height: 1.6;
+        margin: 0 0 1.25rem 0;
+    }
+
+    .answer-section {
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
 
-    /* Grid of cards */
-    .weak-area-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.85rem;
-    }
-
-    /* Each weakness card */
-    .weak-card {
-        background: color-mix(in srgb, var(--mastery-0) 20%, white);
-        border-radius: var(--radius-lg, 10px);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-        padding: 0.9rem 1rem;
+    .user-answer {
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        align-items: flex-start;
-        transition: all 0.25s ease;
+        gap: 0.375rem;
+        padding: 1rem;
+        border-radius: 8px;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
     }
 
-    /* Label text */
-    .weak-card .weak-label {
+    .user-answer.correct {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+    }
+
+    .user-answer.incorrect {
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .answer-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75rem;
         font-weight: 600;
-        font-size: 0.95rem;
-        color: #2b2b2b;
-        margin-bottom: 0.3rem;
-        line-height: 1.4;
-    }
-
-    /* Accuracy percentage */
-    .weak-card .weak-acc {
-        font-weight: 700;
-        font-size: 1rem;
-        color: var(--mastery-0);
-    }
-
-    /* Hover + focus */
-    .weak-card:hover,
-    .weak-card:focus {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        background: color-mix(in srgb, var(--mastery-0) 30%, white);
-        cursor: default;
-    }
-
-    /* Headings above each section */
-    .weak-area-list h4.subtitle {
-        font-weight: 700;
+        color: #6b7280;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: var(--mastery-0);
-        margin-bottom: 0.25rem;
     }
 
-    /* Mobile optimization */
-    @media (max-width: 600px) {
-        .weak-area-grid {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    .answer-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #374151;
+        line-height: 1.5;
+    }
+
+    .toggle-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #8b5cf6;
+        background: #ffffff;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .toggle-button:hover {
+        background: #faf9fc;
+        border-color: #8b5cf6;
+    }
+
+    .explanation-box {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.25rem;
+        background: #faf9fc;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+    }
+
+    .correct-answer-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+
+    .explanation-text {
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .explanation-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6366f1;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .explanation-header svg {
+        color: #6366f1;
+    }
+
+    .explanation-text p {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #374151;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .question-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .meta-tag {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .meta-tag.subject {
+        background: #faf9fc;
+        color: #8b5cf6;
+        border: 1px solid #e9d5ff;
+    }
+
+    .meta-tag.topic {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #dbeafe;
+    }
+
+    .meta-tag.subtopic {
+        background: #f0fdfa;
+        color: #115e59;
+        border: 1px solid #ccfbf1;
+    }
+
+    .meta-tag.difficulty.easy {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+
+    .meta-tag.difficulty.medium {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .meta-tag.difficulty.hard {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .results-container {
+            padding: 1rem 0.75rem;
         }
 
-        .weak-card {
-            padding: 0.75rem 0.9rem;
+        .summary-card {
+            padding: 1.5rem;
         }
 
-        .weak-card .weak-label {
-            font-size: 0.9rem;
+        .score-circle {
+            width: 110px;
+            height: 110px;
         }
 
-        .weak-card .weak-acc {
-            font-size: 0.95rem;
+        .score-value {
+            font-size: 2rem;
+        }
+
+        .summary-title {
+            font-size: 1.5rem;
+        }
+
+        .summary-subtitle {
+            font-size: 1rem;
+        }
+
+        .breakdown-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .weak-grid {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        }
+
+        .question-card {
+            padding: 1.25rem;
+        }
+
+        .question-stem {
+            font-size: 1rem;
+        }
+
+        .question-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
         }
     }
 </style>
