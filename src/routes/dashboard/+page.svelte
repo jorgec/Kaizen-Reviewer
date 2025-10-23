@@ -76,7 +76,7 @@
 	let showAnalyticsMenu = false;
 	function handleClickOutside(e: MouseEvent) {
 		const target = e.target as HTMLElement;
-		if (!target.closest('.dropdown')) {
+		if (!target.closest('.modern-dropdown')) {
 			showAnalyticsMenu = false;
 		}
 	}
