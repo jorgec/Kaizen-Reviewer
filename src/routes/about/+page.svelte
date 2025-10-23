@@ -1,5 +1,5 @@
 <script lang="ts">
-	{% raw %}
+	
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
@@ -8,46 +8,46 @@
 	let data: any = null;
 
 	async function loadData() {
-		try {
-			loading = true;
-			error = null;
-			const res = await fetch('/api/example');
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			data = await res.json();
-		} catch (err) {
-			error = err instanceof Error ? err.message : String(err);
-		} finally {
-			loading = false;
-		}
+		// try {
+		// 	loading = true;
+		// 	error = null;
+		// 	const res = await fetch('/api/example');
+		// 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		// 	data = await res.json();
+		// } catch (err) {
+		// 	error = err instanceof Error ? err.message : String(err);
+		// } finally {
+		// 	loading = false;
+		// }
 	}
 
 	onMount(() => {
 		loadData();
 	});
-	{% endraw %}
+	
 </script>
 
 <svelte:head>
-	<title>{{ cookiecutter.route_display_name }} | Kaizen</title>
-	<meta name="description" content="{{ cookiecutter.route_description }}" />
+	<title>About Kaizen | Kaizen</title>
+	<meta name="description" content="Make small, meaningful changes every day to enhance performance and mastery." />
 </svelte:head>
 
 <main class="p-6 min-h-screen bg-gray-50 text-gray-800">
 	<section class="section">
 		<div class="container">
 			<header class="mb-6">
-				<h1 class="text-3xl font-bold text-[{{ cookiecutter.primary_color }}]">
-					{{ cookiecutter.route_display_name }}
+				<h1 class="text-3xl font-bold text-[#a855f7]">
+					About Kaizen
 				</h1>
 				<p class="text-gray-500 mt-1">
-					{{ cookiecutter.route_description }}
+					Make small, meaningful changes every day to enhance performance and mastery.
 				</p>
 			</header>
 
-			{% raw %}
+
 			{#if loading}
 				<div class="p-4 text-center text-gray-500 animate-pulse">
-					Loading {% endraw %}{{ cookiecutter.route_display_name }}{%raw %} data...
+					Loading about data...
 				</div>
 			{:else if error}
 				<div class="p-4 bg-red-100 text-red-700 rounded-md">
@@ -63,16 +63,16 @@
 							{/each}
 						</ul>
 					{:else}
-        <pre class="text-sm bg-gray-100 p-3 rounded-md overflow-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+					<pre class="text-sm bg-gray-100 p-3 rounded-md overflow-auto">
+						{JSON.stringify(data, null, 2)}
+					</pre>
 					{/if}
 				</section>
 			{/if}
 		</div>
 	</section>
 
-	{% endraw %}
+	
 </main>
 
 <style>
@@ -81,14 +81,14 @@
     }
 
     h1 {
-        color: {{ cookiecutter.primary_color }};
+        color: #a855f7;
     }
 
     a {
-        color: {{ cookiecutter.accent_color }};
+        color: #14b8a6;
     }
 
     a:hover {
-        color: {{ cookiecutter.secondary_color }};
+        color: #8b5cf6;
     }
 </style>
