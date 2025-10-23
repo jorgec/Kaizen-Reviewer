@@ -209,22 +209,22 @@
 					rpcName = 'rpc_generate_prompt_assessment_from_bank';
 					params = {
 						p_org_id: org_id, p_user_id: uid, p_bank_id: form.bank_id,
-						p_title: form.title, p_prompt: form.prompt_text || '', p_total_items: 1
+						p_title: form.title, p_prompt: form.prompt_text || '', p_discipline_id: currentDiscipline.discipline_id
 					};
 					break;
 				case 'short':
 					rpcName = 'rpc_generate_standard_assessment_from_bank';
-					params = { p_org_id: org_id, p_user_id: uid, p_bank_id: form.bank_id, p_title: form.title, p_total_items: form.total_items };
+					params = { p_org_id: org_id, p_user_id: uid, p_bank_id: form.bank_id, p_title: form.title, p_total_items: form.total_items, p_discipline_id: currentDiscipline.discipline_id };
 					break;
 				case 'adaptive':
 					rpcName = 'rpc_generate_adaptive_assessment_from_bank';
-					params = { p_org_id: org_id, p_user_id: uid, p_bank_id: form.bank_id, p_title: form.title, p_start_items: form.start_items };
+					params = { p_org_id: org_id, p_user_id: uid, p_bank_id: form.bank_id, p_title: form.title, p_start_items: form.start_items, p_discipline_id: currentDiscipline.discipline_id };
 					break;
 				case 'mock':
 					rpcName = 'rpc_generate_mock_exam_from_bank';
 					params = {
 						p_org_id: org_id, p_user_id: uid, p_bank_id: form.bank_id, p_title: form.title,
-						p_easy_count: form.easy, p_medium_count: form.medium, p_hard_count: form.hard
+						p_easy_count: form.easy, p_medium_count: form.medium, p_hard_count: form.hard, p_discipline_id: currentDiscipline.discipline_id
 					};
 					break;
 			}
