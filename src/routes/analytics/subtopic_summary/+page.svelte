@@ -9,12 +9,11 @@
 	let loading = true;
 	let error = '';
 
-	// Discipline selector
-	let disciplines: Array<{ id?: string; name?: string } | string> = [];
-	let selectedDiscipline: string = '';
-
 	// Raw API rows
 	let summary: any[] = [];
+
+	// Collapsible help section
+	let showHelp = false;
 
 	// Grouped structure: Subject -> Topic -> Subtopics
 	type SubtopicRow = {
@@ -58,24 +57,13 @@
 
 	let grouped: SubjectGroup[] = [];
 
-	onMount(async () => {
-		try {
-			// populate discipline options from stored user
-			disciplines = Array.isArray(user?.disciplines) ? user.disciplines : [];
-			if (disciplines.length > 0) {
-				const first = disciplines[0] as any;
-				selectedDiscipline = typeof first === 'string' ? first : (first.discipline_id ?? first.discipline_name ?? '');
-			}
-			await fetchSummary();
-		} catch (e: any) {
-			error = e?.message || 'Failed to load page.';
-		} finally {
-			loading = false;
-		}
-	});
+	// Reactive statement: fetch data whenever discipline changes
+	$: if (user?.user_id && user?.currentDiscipline?.discipline_id) {
+		fetchSummary();
+	}
 
 	async function fetchSummary() {
-		if (!user?.user_id) return;
+		if (!user?.user_id || !user?.currentDiscipline?.discipline_id) return;
 
 		loading = true;
 		error = '';
@@ -83,7 +71,7 @@
 		try {
 			const { data, error: rpcError } = await supabase.rpc('rpc_user_subtopic_summary_ewm', {
 				p_user_id: user.user_id,
-				p_discipline_id: selectedDiscipline || null,
+				p_discipline_id: user.currentDiscipline.discipline_id,
 				p_half_life_days: 30
 			});
 			if (rpcError) throw rpcError;
@@ -200,13 +188,23 @@
 		return Number.isFinite(n) ? n.toFixed(maxDecimals) : '';
 	}
 
+	function getAccuracyColor(pctVal: number): string {
+		// Returns subtle color based on performance (matching calendar colors but muted)
+		if (pctVal >= 90) return '#81d4c4'; // muted cyan
+		if (pctVal >= 85) return '#7ba894'; // muted teal
+		if (pctVal >= 80) return '#a8c8d9'; // muted light blue
+		if (pctVal >= 75) return '#f5c97f'; // muted amber
+		if (pctVal >= 50) return '#e8a876'; // muted orange
+		if (pctVal >= 30) return '#d88888'; // muted red
+		return '#d88888'; // muted red for very low
+	}
+
 	function rowClassByAccuracy(pctVal: number) {
 		// pctVal is in 0..100
-		if (pctVal >= 90) return `row-high score-${pctVal}`;
-		if (pctVal >= 75) return `row-good score-${pctVal}`;
-		if (pctVal >= 41) return `row-fair score-${pctVal}`;
-		if (pctVal < 40) return `row-low score-${pctVal}`;
-		return '';
+		if (pctVal >= 90) return 'row-high';
+		if (pctVal >= 75) return 'row-good';
+		if (pctVal >= 50) return 'row-fair';
+		return 'row-low';
 	}
 
 	function toggleSubject(subj: SubjectGroup) {
@@ -268,111 +266,206 @@
 	}
 </script>
 
-<section class="section">
-	<div class="container">
-		<div class="header-row">
-			<h2 class="title is-4 mb-0">Learner × Skill (subtopic) with Recency-Weighted Mastery (EWM-Acc)</h2>
-
-			<div class="controls">
-				<div class="select is-small">
-					<select bind:value={selectedDiscipline} on:change={fetchSummary} aria-label="Select Discipline">
-						{#if disciplines.length === 0}
-							<option value="">No disciplines</option>
-						{:else}
-							{#each disciplines as d, i}
-								<option value={typeof d === 'string' ? d : (d.discipline_id ?? d.discipline_name ?? String(i))}>
-									{typeof d === 'string' ? d : (d.discipline_name ?? d.discipline_id ?? `Discipline ${i + 1}`)}
-								</option>
-							{/each}
-						{/if}
-					</select>
+<div class="analytics-container">
+	<div class="analytics-wrapper">
+		<!-- Header -->
+		<div class="analytics-header">
+			<div class="header-content">
+				<div class="title-group">
+					<h1 class="analytics-title">Subtopic Performance Analysis</h1>
+					<p class="analytics-subtitle">Recency-weighted mastery across subjects, topics, and subtopics (30-day window)</p>
 				</div>
+				<button class="help-toggle-btn" on:click={() => (showHelp = !showHelp)} type="button">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10"></circle>
+						<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+						<line x1="12" y1="17" x2="12.01" y2="17"></line>
+					</svg>
+					<span>{showHelp ? 'Hide' : 'Show'} Guide</span>
+				</button>
 			</div>
 		</div>
-		<h3 class="subtitle">A per-user weak/strong map with both level and stability, taking the user’s 0/1 correctness over time and computing an exponentially weighted mean of those outcomes—so recent answers get more weight than older ones.</h3>
+
+		<!-- Help Section (Collapsible) -->
+		{#if showHelp}
+			<div class="help-panel">
+				<div class="help-content">
+					<h3 class="help-title">Understanding This Report</h3>
+					<p class="help-description">
+						This view shows your performance across the subject taxonomy using exponentially-weighted moving averages.
+						Recent attempts count more than older ones, giving you a current picture of mastery that responds quickly to improvement or decay.
+					</p>
+
+					<div class="help-sections">
+						<div class="help-section">
+							<h4 class="help-section-title">Stability (Wilson HW)</h4>
+							<p class="help-text">
+								Half-width of the 95% Wilson confidence interval. Lower values = more reliable accuracy estimate.
+							</p>
+							<ul class="help-list">
+								<li><strong>&lt; 0.05:</strong> Strong stability</li>
+								<li><strong>&lt; 0.10:</strong> Decent stability</li>
+								<li><strong>0.10–0.20:</strong> Moderate stability</li>
+								<li><strong>&gt; 0.20:</strong> Low stability (noisy data)</li>
+							</ul>
+						</div>
+
+						<div class="help-section">
+							<h4 class="help-section-title">EWM Accuracy</h4>
+							<p class="help-text">
+								Exponentially-weighted mean of correctness. Shows current mastery, not lifetime average.
+							</p>
+							<ul class="help-list">
+								<li><strong>≥ 0.85:</strong> Strong mastery → advance difficulty</li>
+								<li><strong>0.70–0.84:</strong> Solid → mixed practice</li>
+								<li><strong>0.55–0.69:</strong> Emerging → focused practice</li>
+								<li><strong>&lt; 0.55:</strong> Struggling → remediate</li>
+							</ul>
+						</div>
+
+						<div class="help-section">
+							<h4 class="help-section-title">Patterns to Watch</h4>
+							<ul class="help-list">
+								<li><strong>High EWM + Low HW:</strong> Confident mastery</li>
+								<li><strong>High EWM + High HW:</strong> Small sample, gather more data</li>
+								<li><strong>Low EWM + Low HW:</strong> Consistently weak, intervene</li>
+								<li><strong>EWM ≫ accuracy:</strong> Recent improvement trend</li>
+								<li><strong>EWM ≪ accuracy:</strong> Recent regression/forgetting</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
 		{#if loading}
-			<p>Loading...</p>
+			<div class="loading-state">
+				<div class="spinner"></div>
+				<p class="loading-text">Loading performance data...</p>
+			</div>
 		{:else if error}
-			<p class="has-text-danger">{error}</p>
+			<div class="error-state">
+				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="10"></circle>
+					<line x1="12" y1="8" x2="12" y2="12"></line>
+					<line x1="12" y1="16" x2="12.01" y2="16"></line>
+				</svg>
+				<p class="error-text">{error}</p>
+			</div>
 		{:else if grouped.length === 0}
-			<p>No data to display.</p>
+			<div class="empty-state">
+				<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+					<line x1="9" y1="9" x2="15" y2="15"></line>
+					<line x1="15" y1="9" x2="9" y2="15"></line>
+				</svg>
+				<p class="empty-text">No performance data available for the past 30 days.</p>
+			</div>
 		{:else}
-			<div class="summary-grid">
-				<table class="table is-fullwidth is-hoverable">
-					<thead class="th-small">
-					<tr>
-						<th style="width: 22%"><span style="font-size:  .8rem;">Subject</span></th>
-						<th style="width: 22%"><span style="font-size:  .8rem;">Topic</span></th>
-						<th style="width: 22%"><span style="font-size:  .8rem;">Subtopic</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Distinct (30d)</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Attempts (30d)</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Correct (30d)</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Accuracy %</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">Stability (HW)</span></th>
-						<th class="has-text-right"><span style="font-size:  .8rem;">EWM</span></th>
-					</tr>
-					</thead>
-					<tbody>
+			<div class="data-card">
+				<div class="table-wrapper">
+					<table class="modern-analytics-table">
+						<thead>
+							<tr>
+								<th class="col-taxonomy">Subject / Topic / Subtopic</th>
+								<th class="col-number">Items</th>
+								<th class="col-number">Attempts</th>
+								<th class="col-number">Correct</th>
+								<th class="col-number">Accuracy</th>
+								<th class="col-number">Stability</th>
+								<th class="col-number">EWM</th>
+							</tr>
+						</thead>
+						<tbody>
 					{#each grouped as subj (subj.subject_id)}
-						<tr class={rowClassByAccuracy(subj.accuracyPct)}>
-							<td colspan="3">
-								<button class="toggle-btn" type="button" on:click={() => toggleSubject(subj)}
-												aria-label="Toggle subject">
-									{subj.expanded ? '−' : '+'}
-								</button>
-										{subj.subject_name}
+						<tr class="subject-row {rowClassByAccuracy(subj.accuracyPct)}" style="border-left: 4px solid {getAccuracyColor(subj.accuracyPct)}">
+							<td class="col-taxonomy">
+								<div class="taxonomy-cell level-subject">
+									<button class="expand-btn" type="button" on:click={() => toggleSubject(subj)} aria-label="Toggle subject">
+										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class:rotated={subj.expanded}>
+											<polyline points="9 18 15 12 9 6"></polyline>
+										</svg>
+									</button>
+									<span class="taxonomy-name">{subj.subject_name}</span>
+								</div>
 							</td>
-							<td class="has-text-right">{subj.distinct_items_30d}</td>
-							<td class="has-text-right">{subj.attempts_30d}</td>
-							<td class="has-text-right">{subj.correct_30d}</td>
-							<td class="has-text-right">{fmtPct(subj.accuracyPct)}</td>
-							<td class="has-text-right"></td>
-							<td class="has-text-right"></td>
+							<td class="col-number">{subj.distinct_items_30d}</td>
+							<td class="col-number">{subj.attempts_30d}</td>
+							<td class="col-number">{subj.correct_30d}</td>
+							<td class="col-number">
+								<span class="accuracy-badge" style="background: {getAccuracyColor(subj.accuracyPct)}20; color: {getAccuracyColor(subj.accuracyPct)}; border: 1px solid {getAccuracyColor(subj.accuracyPct)}40">
+									{fmtPct(subj.accuracyPct)}%
+								</span>
+							</td>
+							<td class="col-number">—</td>
+							<td class="col-number">—</td>
 						</tr>
 
 						{#if subj.expanded}
 							{#each subj.topics as topic (topic.topic_id)}
-								<tr class={rowClassByAccuracy(topic.accuracyPct)}>
-									<td></td>
-									<td colspan="2">
-										<div class="indent-1">
-											<button class="toggle-btn" type="button" on:click={() => toggleTopic(topic)}
-															aria-label="Toggle topic">
-												{topic.expanded ? '−' : '+'}
+								<tr class="topic-row {rowClassByAccuracy(topic.accuracyPct)}" style="border-left: 4px solid {getAccuracyColor(topic.accuracyPct)}">
+									<td class="col-taxonomy">
+										<div class="taxonomy-cell level-topic">
+											<button class="expand-btn" type="button" on:click={() => toggleTopic(topic)} aria-label="Toggle topic">
+												<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class:rotated={topic.expanded}>
+													<polyline points="9 18 15 12 9 6"></polyline>
+												</svg>
 											</button>
-											{topic.topic_name}
+											<span class="taxonomy-name">{topic.topic_name}</span>
 										</div>
 									</td>
-									<td class="has-text-right">{topic.distinct_items_30d}</td>
-									<td class="has-text-right">{topic.attempts_30d}</td>
-									<td class="has-text-right">{topic.correct_30d}</td>
-									<td class="has-text-right">{fmtPct(topic.accuracyPct)}</td>
-									<td class="has-text-right"></td>
-									<td class="has-text-right"></td>
+									<td class="col-number">{topic.distinct_items_30d}</td>
+									<td class="col-number">{topic.attempts_30d}</td>
+									<td class="col-number">{topic.correct_30d}</td>
+									<td class="col-number">
+										<span class="accuracy-badge" style="background: {getAccuracyColor(topic.accuracyPct)}20; color: {getAccuracyColor(topic.accuracyPct)}; border: 1px solid {getAccuracyColor(topic.accuracyPct)}40">
+											{fmtPct(topic.accuracyPct)}%
+										</span>
+									</td>
+									<td class="col-number">—</td>
+									<td class="col-number">—</td>
 								</tr>
 
 								{#if topic.expanded}
 									{#each topic.subtopics as st (st.subtopic_id)}
-										<tr class={rowClassByAccuracy((st.accuracy ?? 0) * 100)}>
-											<td></td>
-											<td></td>
-											<td>
-												<div class="indent-2">
-													<span
+										<tr class="subtopic-row {rowClassByAccuracy((st.accuracy ?? 0) * 100)}" style="border-left: 4px solid {getAccuracyColor((st.accuracy ?? 0) * 100)}">
+											<td class="col-taxonomy">
+												<div class="taxonomy-cell level-subtopic">
+													<button
+														class="subtopic-link"
+														type="button"
 														on:click={() => openDrilldown('subtopic', st, st.subtopic_name)}
-														style="cursor:pointer;">
-															{st.subtopic_name}
-													</span>
+													>
+														{st.subtopic_name}
+														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+															<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+															<polyline points="15 3 21 3 21 9"></polyline>
+															<line x1="10" y1="14" x2="21" y2="3"></line>
+														</svg>
+													</button>
 												</div>
 											</td>
-											<td class="has-text-right">{st.distinct_items_30d}</td>
-											<td class="has-text-right">{st.attempts_30d}</td>
-											<td class="has-text-right">{st.correct_30d}</td>
-											<td class="has-text-right">{fmtPct((st.accuracy ?? 0) * 100)}</td>
-											<td class="has-text-right">
-												{st.stability_wilson_hw != null ? Number(st.stability_wilson_hw).toFixed(4) : ''}
+											<td class="col-number">{st.distinct_items_30d}</td>
+											<td class="col-number">{st.attempts_30d}</td>
+											<td class="col-number">{st.correct_30d}</td>
+											<td class="col-number">
+												<span class="accuracy-badge" style="background: {getAccuracyColor((st.accuracy ?? 0) * 100)}20; color: {getAccuracyColor((st.accuracy ?? 0) * 100)}; border: 1px solid {getAccuracyColor((st.accuracy ?? 0) * 100)}40">
+													{fmtPct((st.accuracy ?? 0) * 100)}%
+												</span>
 											</td>
-											<td class="has-text-right">{fmtNum(st.ewm_accuracy, 2)}</td>
+											<td class="col-number">
+												{#if st.stability_wilson_hw != null}
+													<span class="metric-value">{Number(st.stability_wilson_hw).toFixed(4)}</span>
+												{:else}
+													<span class="no-data">—</span>
+												{/if}
+											</td>
+											<td class="col-number">
+												{#if st.ewm_accuracy != null}
+													<span class="metric-value">{fmtNum(st.ewm_accuracy, 3)}</span>
+												{:else}
+													<span class="no-data">—</span>
+												{/if}
+											</td>
 										</tr>
 									{/each}
 								{/if}
@@ -381,286 +474,851 @@
 					{/each}
 					</tbody>
 				</table>
-			</div>
-			<div class="has-mw-5xl mx-auto mb-20 px-8 mt-4 is-small is-size-6" style="font-size: 80% !important;">
-				<h3 class="title is-3">How to Read <code class="mono">stability_wilson_hw</code> and EWM</h3>
-
-
-					<p class="lead">
-						<strong><span class="mono">stability_wilson_hw</span></strong> is the half-width of the 95% Wilson score confidence interval
-						for a user’s accuracy on a topic/subtopic. Think of it as an uncertainty radius around the measured accuracy:
-						the smaller it is, the more <em>stable</em> (reliable) the accuracy.
-					</p>
-
-
-				<div class="content">
-					<p class="mono">Example: accuracy = 0.70 and stability_wilson_hw = 0.088 ⇒ Wilson 95% CI ≈ [0.612, 0.781]</p>
-					<p>Smaller half-width (HW) ⇒ more confidence that the “true” accuracy is close to the observed value.
-						HW shrinks with more attempts and is largest near <span class="mono">p̂ ≈ 0.5</span>.</p>
-				</div>
-
-
-				<h3 class="title is-6">Quick rule of thumb (UI)</h3>
-				<ul class="content">
-					<li><span class="tag is-danger is-light mono">HW &gt; 0.20</span> → very noisy (low stability)</li>
-					<li><span class="tag is-warning is-light mono">0.10–0.20</span> → moderate stability</li>
-					<li><span class="tag is-success is-light mono">&lt; 0.10</span> → decent stability</li>
-					<li><span class="tag is-primary is-light mono">&lt; 0.05</span> → strong stability</li>
-				</ul>
-
-				<hr class="rule">
-
-				<h3 class="title is-5">What EWM tells you (at a glance)</h3>
-				<div class="content">
-					<ul>
-						<li><strong>Value range:</strong> 0.00–1.00 (or 0–100%). Higher = better recent mastery.</li>
-						<li><strong>Recency bias:</strong> Newer attempts count more (controlled by your chosen half-life).</li>
-						<li><strong>Responsiveness:</strong> EWM moves faster than raw accuracy; it reflects current skill, not lifetime history.</li>
-					</ul>
-				</div>
-
-				<h3 class="title is-6">Suggested interpretation bands</h3>
-				<table class="table is-striped is-fullwidth is-hoverable is-small">
-					<thead>
-					<tr class="is-size-7">
-						<th class="mono is-size-7">EWM accuracy</th>
-						<th class="is-size-7">Meaning</th>
-						<th class="is-size-7">Recommended action</th>
-					</tr>
-					</thead>
-					<tbody>
-					<tr class="is-size-7">
-						<td class="mono is-size-7">≥ 0.85</td>
-						<td class="is-size-7">Strong mastery</td>
-						<td class="is-size-7">Advance difficulty; occasional review</td>
-					</tr>
-					<tr class="is-size-7">
-						<td class="mono is-size-7">0.70–0.84</td>
-						<td class="is-size-7">Solid but improvable</td>
-						<td class="is-size-7">Mixed practice; a few targeted items</td>
-					</tr>
-					<tr class="is-size-7">
-						<td class="mono is-size-7">0.55–0.69</td>
-						<td class="is-size-7">Emerging</td>
-						<td class="is-size-7">Focused practice; scaffolded hints</td>
-					</tr>
-					<tr class="is-size-7">
-						<td class="mono is-size-7">&lt; 0.55</td>
-						<td class="is-size-7">Struggling</td>
-						<td class="is-size-7">Remediate; revisit prerequisites</td>
-					</tr>
-					</tbody>
-				</table>
-
-				<hr class="rule">
-
-				<h3 class="title is-5">How half-life affects interpretation</h3>
-				<div class="content">
-					<ul>
-						<li><strong>Short</strong> (e.g., 7 days): reacts quickly; great for cramming/rapid change, but volatile.</li>
-						<li><strong>Medium</strong> (≈ 30 days): balanced; good general default.</li>
-						<li><strong>Long</strong> (≥ 60–90 days): slow-moving; closer to smoothed long-term mastery.</li>
-					</ul>
-				</div>
-
-				<h2 class="title is-5">Patterns to look for</h2>
-				<div class="content">
-					<ul>
-						<li><strong>High EWM + Low stability HW:</strong> confident mastery now → promote difficulty.</li>
-						<li><strong>High EWM + High stability HW:</strong> possibly lucky streak / small sample → gather a few more items.</li>
-						<li><strong>Low EWM + Low stability HW:</strong> consistently weak → intervene.</li>
-						<li><strong>Dropping EWM (week-over-week):</strong> skill decay → schedule spaced review.</li>
-						<li><strong>EWM ≫ raw accuracy:</strong> recent improvement.</li>
-						<li><strong>EWM ≪ raw accuracy:</strong> regression/forgetting; recent misses outweigh older success.</li>
-					</ul>
 				</div>
 			</div>
 		{/if}
 	</div>
-</section>
+</div>
 
 <!-- ================= Modal ================= -->
 {#if showModal}
-	<div class="modal is-active">
-		<div class="modal-background" on:click={closeModal}></div>
-		<div class="modal-card large-modal">
-			<header class="modal-card-head">
-				<p class="modal-card-title">{modalTitle}</p>
-				<button class="delete" aria-label="close" on:click={closeModal}></button>
-			</header>
+	<div class="modern-modal-overlay" on:click={closeModal}>
+		<div class="modern-modal-card" on:click={(e) => e.stopPropagation()}>
+			<div class="modern-modal-header">
+				<h3 class="modern-modal-title">{modalTitle}</h3>
+				<button class="modern-close-btn" type="button" on:click={closeModal} aria-label="Close modal">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18"></line>
+						<line x1="6" y1="6" x2="18" y2="18"></line>
+					</svg>
+				</button>
+			</div>
 
-			<section class="modal-card-body scrollable-body">
+			<div class="modern-modal-body">
 				{#if modalLoading}
-					<p>Loading details...</p>
+					<div class="modal-loading">
+						<div class="spinner"></div>
+						<p>Loading details...</p>
+					</div>
 				{:else if modalData.length === 0}
-					<p>No questions found for this category.</p>
+					<div class="modal-empty">
+						<p>No questions found for this category.</p>
+					</div>
 				{:else}
-					<table class="table is-fullwidth is-hoverable">
-						<thead>
-						<tr>
-							<th style="width: 45%">Question</th>
-							<th>Difficulty</th>
-							<th>Responses</th>
-						</tr>
-						</thead>
-						<tbody>
-						{#each modalData as q}
-							<tr>
-								<td>{q.stem}</td>
-								<td>
-										<span
-											class="tag"
-											class:easy={q.difficulty === 'easy'}
-											class:medium={q.difficulty === 'medium'}
-											class:hard={q.difficulty === 'hard'}
-										>
-											{q.difficulty}
-										</span>
-								</td>
+					<div class="questions-list">
+						{#each modalData as q, idx}
+							<div class="question-item">
+								<div class="question-header-row">
+									<span class="question-number">Q{idx + 1}</span>
+									<span class="difficulty-badge difficulty-{q.difficulty}">
+										{q.difficulty || 'unknown'}
+									</span>
+								</div>
+								<p class="question-stem">{q.stem}</p>
 
-								<td>
-									{#if q.responses && q.responses.length > 0}
-										<ul class="response-list">
+								{#if q.responses && q.responses.length > 0}
+									<div class="responses-section">
+										<h4 class="responses-title">Your Responses ({q.responses.length})</h4>
+										<div class="response-cards">
 											{#each q.responses as r}
-												<li class={r.is_correct ? 'has-text-success' : 'has-text-danger'}>
-													<strong>{r.choice_label}</strong> — {r.choice_text}
-													<br />
-													<small>{new Date(r.answered_at).toLocaleString()}</small>
-													<span class="ml-2">{r.is_correct ? '✅' : '❌'}</span>
-												</li>
+												<div class="response-card {r.is_correct ? 'correct' : 'incorrect'}">
+													<div class="response-choice">
+														<span class="choice-label">{r.choice_label}</span>
+														<span class="choice-text">{r.choice_text}</span>
+													</div>
+													<div class="response-meta">
+														<span class="response-date">{new Date(r.answered_at).toLocaleString()}</span>
+														<span class="response-status">
+															{#if r.is_correct}
+																<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+																	<polyline points="20 6 9 17 4 12"></polyline>
+																</svg>
+																Correct
+															{:else}
+																<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+																	<line x1="18" y1="6" x2="6" y2="18"></line>
+																	<line x1="6" y1="6" x2="18" y2="18"></line>
+																</svg>
+																Incorrect
+															{/if}
+														</span>
+													</div>
+												</div>
 											{/each}
-										</ul>
-									{:else}
-										<em class="has-text-grey-light">No responses yet</em>
-									{/if}
-								</td>
-							</tr>
+										</div>
+									</div>
+								{:else}
+									<p class="no-responses">No responses yet</p>
+								{/if}
+							</div>
 						{/each}
-						</tbody>
-					</table>
+					</div>
 				{/if}
-			</section>
+			</div>
 		</div>
 	</div>
 {/if}
 
 <style>
-    .header-row {
+    /* Container */
+    .analytics-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #faf9fc 0%, #f5f3f7 100%);
+        padding: 2rem 1rem;
+    }
+
+    .analytics-wrapper {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* Header */
+    .analytics-header {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .header-content {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        margin-bottom: 1rem;
-        gap: 1rem;
-        font-size: 1.125rem;
+        gap: 2rem;
     }
 
-    .controls {
-        display: flex;
+    .title-group {
+        flex: 1;
+    }
+
+    .analytics-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .analytics-subtitle {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .help-toggle-btn {
+        display: inline-flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        background: linear-gradient(135deg, #a855f7, #8b5cf6);
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+        flex-shrink: 0;
     }
 
-    .summary-grid {
+    .help-toggle-btn:hover {
+        background: linear-gradient(135deg, #9333ea, #7c3aed);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+
+    /* Help Panel */
+    .help-panel {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(139, 92, 246, 0.15);
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .help-content {
+        max-width: 100%;
+    }
+
+    .help-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 1rem 0;
+    }
+
+    .help-description {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #4b5563;
+        line-height: 1.6;
+        margin: 0 0 1.5rem 0;
+    }
+
+    .help-sections {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .help-section {
+        background: linear-gradient(135deg, #faf9fc, #f9f8fb);
+        border-radius: 10px;
+        padding: 1.25rem;
+        border: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .help-section-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #8b5cf6;
+        margin: 0 0 0.75rem 0;
+    }
+
+    .help-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #6b7280;
+        line-height: 1.5;
+        margin: 0 0 0.75rem 0;
+    }
+
+    .help-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .help-list li {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
+        color: #4b5563;
+        line-height: 1.6;
+        padding: 0.25rem 0;
+    }
+
+    .help-list li strong {
+        color: #111827;
+        font-weight: 600;
+    }
+
+    /* Loading/Error/Empty States */
+    .loading-state,
+    .error-state,
+    .empty-state {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f3f4f6;
+        border-top-color: #8b5cf6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-text,
+    .error-text,
+    .empty-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .error-state svg {
+        color: #ef4444;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state svg {
+        color: #9ca3af;
+        margin-bottom: 1rem;
+    }
+
+    /* Data Card */
+    .data-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .table-wrapper {
         overflow-x: auto;
     }
 
-    .summary-grid table th {
-        font-size: 1rem !important;
+    /* Modern Table */
+    .modern-analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Inter', sans-serif;
     }
 
-    .summary-grid table td {
-        font-size: .875rem !important;
-				line-height: .85rem !important;
+    .modern-analytics-table thead {
+        background: linear-gradient(135deg, #faf9fc, #f5f3f7);
+        border-bottom: 2px solid rgba(139, 92, 246, 0.1);
     }
 
-    .toggle-btn {
-        line-height: .85rem !important;
-        background: transparent;
-        border: none;
-        cursor: pointer;
+    .modern-analytics-table thead th {
+        padding: 1rem;
+        text-align: left;
+        font-size: 0.8125rem;
         font-weight: 700;
-        margin-right: 0.5rem;
-        text-align: center;
-        border-radius: 4px;
-        color: inherit;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .indent-1 {
-        /*padding-left: 1rem;*/
+    .modern-analytics-table thead th.col-number {
+        text-align: right;
     }
 
-    .indent-2 {
-        /*padding-left: 2rem;*/
+    .modern-analytics-table tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+        transition: all 0.15s ease;
     }
 
-    /* Accuracy color bands */
+    .modern-analytics-table tbody tr:hover {
+        background: #faf9fc;
+    }
+
+    .modern-analytics-table tbody td {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+
+    .modern-analytics-table tbody td.col-number {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: #6b7280;
+    }
+
+    /* Row Styling by Accuracy */
     .row-low {
-        background-color: rgba(236, 62, 44, 0.2);
+        background: rgba(216, 136, 136, 0.05);
     }
 
     .row-fair {
-        background-color: rgba(255, 152, 0, 0.2);
+        background: rgba(232, 168, 118, 0.05);
     }
 
     .row-good {
-        background-color: rgba(255, 214, 0, 0.2);
+        background: rgba(245, 201, 127, 0.05);
     }
 
     .row-high {
-        background-color: rgba(0, 191, 174, 0.2);
+        background: rgba(129, 212, 196, 0.05);
     }
 
-    /* Keep hover readable with Bulma */
-    table.table.is-hoverable tbody tr:hover {
-        filter: brightness(0.98);
+    .row-low:hover {
+        background: rgba(216, 136, 136, 0.08) !important;
     }
 
-    .modal-card.large-modal {
-        width: 90vw;
-        max-width: 1200px;
-        height: 80vh;
+    .row-fair:hover {
+        background: rgba(232, 168, 118, 0.08) !important;
+    }
+
+    .row-good:hover {
+        background: rgba(245, 201, 127, 0.08) !important;
+    }
+
+    .row-high:hover {
+        background: rgba(129, 212, 196, 0.08) !important;
+    }
+
+    /* Hierarchy Levels */
+    .subject-row {
+        font-weight: 600;
+    }
+
+    .topic-row {
+        font-weight: 500;
+    }
+
+    .subtopic-row {
+        font-weight: 400;
+    }
+
+    /* Taxonomy Cell */
+    .taxonomy-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .taxonomy-cell.level-subject {
+        padding-left: 0;
+    }
+
+    .taxonomy-cell.level-topic {
+        padding-left: 1.5rem;
+    }
+
+    .taxonomy-cell.level-subtopic {
+        padding-left: 3rem;
+    }
+
+    .taxonomy-name {
+        font-family: 'Inter', sans-serif;
+        color: #111827;
+    }
+
+    /* Expand Button */
+    .expand-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        color: #9ca3af;
+    }
+
+    .expand-btn:hover {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+    }
+
+    .expand-btn svg {
+        transition: transform 0.2s ease;
+    }
+
+    .expand-btn svg.rotated {
+        transform: rotate(90deg);
+    }
+
+    /* Subtopic Link */
+    .subtopic-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        background: transparent;
+        border: none;
+        padding: 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #6366f1;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .subtopic-link:hover {
+        color: #4f46e5;
+        text-decoration: underline;
+    }
+
+    .subtopic-link svg {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .subtopic-link:hover svg {
+        opacity: 1;
+    }
+
+    /* Accuracy Badge */
+    .accuracy-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .metric-value {
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 0.8125rem;
+        color: #374151;
+        font-weight: 500;
+    }
+
+    .no-data {
+        color: #d1d5db;
+    }
+
+    /* Modal Styles */
+    .modern-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 2rem;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modern-modal-card {
+        background: #ffffff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 900px;
+        max-height: 85vh;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: modalSlideUp 0.3s ease;
     }
 
-    .scrollable-body {
-        overflow-y: auto;
-        padding: 1rem;
+    @keyframes modalSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .response-list {
-        list-style: none;
+    .modern-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .modern-modal-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
         margin: 0;
-        padding: 0;
-    }
-    .response-list li {
-        margin-bottom: 0.5rem;
-        line-height: 1.4em;
     }
 
-    .modal-card-title {
+    .modern-close-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #9ca3af;
+    }
+
+    .modern-close-btn:hover {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .modern-modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+    }
+
+    .modal-loading,
+    .modal-empty {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+
+    .modal-loading .spinner {
+        margin: 0 auto 1rem;
+    }
+
+    .modal-loading p,
+    .modal-empty p {
+        font-family: 'Inter', sans-serif;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    /* Questions List */
+    .questions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .question-item {
+        background: linear-gradient(135deg, #faf9fc, #f9f8fb);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .question-header-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .question-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #a855f7, #8b5cf6);
+        color: #ffffff;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 700;
+    }
+
+    .difficulty-badge {
+        padding: 0.375rem 0.875rem;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
         font-weight: 600;
-        font-size: 1.4rem;
+        text-transform: capitalize;
     }
 
-    .tag.easy { background-color: #2a9d8f; color: #fff; }
-    .tag.medium { background-color: #f4a261; color: #1d1d1d; }
-    .tag.hard { background-color: #e76f51; color: #fff; }
+    .difficulty-badge.difficulty-easy {
+        background: rgba(16, 185, 129, 0.15);
+        color: #059669;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
 
+    .difficulty-badge.difficulty-medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: #d97706;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .difficulty-badge.difficulty-hard {
+        background: rgba(239, 68, 68, 0.15);
+        color: #dc2626;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .difficulty-badge.difficulty-unknown {
+        background: rgba(156, 163, 175, 0.15);
+        color: #6b7280;
+        border: 1px solid rgba(156, 163, 175, 0.3);
+    }
+
+    .question-stem {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #111827;
+        line-height: 1.6;
+        margin: 0 0 1.25rem 0;
+    }
+
+    .responses-section {
+        margin-top: 1.25rem;
+    }
+
+    .responses-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6b7280;
+        margin: 0 0 0.75rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .response-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .response-card {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .response-card.correct {
+        border-left: 3px solid #10b981;
+        background: rgba(16, 185, 129, 0.02);
+    }
+
+    .response-card.incorrect {
+        border-left: 3px solid #ef4444;
+        background: rgba(239, 68, 68, 0.02);
+    }
+
+    .response-choice {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .choice-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, #a855f7, #8b5cf6);
+        color: #ffffff;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0 0.375rem;
+        flex-shrink: 0;
+    }
+
+    .choice-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #374151;
+        line-height: 1.5;
+        flex: 1;
+    }
+
+    .response-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .response-date {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .response-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+
+    .response-card.correct .response-status {
+        color: #10b981;
+    }
+
+    .response-card.incorrect .response-status {
+        color: #ef4444;
+    }
+
+    .no-responses {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #9ca3af;
+        font-style: italic;
+        margin: 1rem 0 0 0;
+    }
+
+    /* Mobile Responsiveness */
     @media (max-width: 768px) {
-        .modal-card.large-modal {
-            width: 95vw;
-            height: 85vh;
+        .analytics-container {
+            padding: 1rem 0.5rem;
         }
-        .aptitude-table th,
-        .aptitude-table td {
-            font-size: 1.1rem;
-            padding: 1rem 0.75rem;
+
+        .analytics-header {
+            padding: 1.5rem;
         }
-        table.is-fullwidth {
-            display: block;
-            overflow-x: auto;
-            white-space: nowrap;
+
+        .header-content {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .analytics-title {
+            font-size: 1.5rem;
+        }
+
+        .analytics-subtitle {
+            font-size: 0.875rem;
+        }
+
+        .help-sections {
+            grid-template-columns: 1fr;
+        }
+
+        .modern-analytics-table {
+            font-size: 0.8125rem;
+        }
+
+        .modern-analytics-table thead th,
+        .modern-analytics-table tbody td {
+            padding: 0.75rem 0.5rem;
+        }
+
+        .taxonomy-cell.level-topic {
+            padding-left: 1rem;
+        }
+
+        .taxonomy-cell.level-subtopic {
+            padding-left: 2rem;
+        }
+
+        .modern-modal-overlay {
+            padding: 1rem;
+        }
+
+        .modern-modal-body {
+            padding: 1.5rem;
+        }
+
+        .question-item {
+            padding: 1rem;
         }
     }
 </style>

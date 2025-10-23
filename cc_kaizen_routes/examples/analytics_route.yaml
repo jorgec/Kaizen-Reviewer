@@ -1,0 +1,15 @@
+# Example configuration for generating an analytics route
+# Usage: cookiecutter cc_kaizen_routes --no-input --config-file examples/analytics_route.yaml
+
+default_context:
+  route_name: "example_analytics"
+  route_display_name: "Example Analytics"
+  route_description: "Detailed analytics with filters and sortable tables"
+  route_type: "analytics"
+  include_filters: "yes"
+  include_table: "yes"
+  include_modal: "yes"
+  primary_color: "#a855f7"
+  secondary_color: "#8b5cf6"
+  accent_color: "#14b8a6"
+  author_name: "Kaizen Team"

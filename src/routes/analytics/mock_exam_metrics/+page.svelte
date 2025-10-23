@@ -392,145 +392,151 @@
 	});
 </script>
 
-<section class="section">
-	<div class="container">
-		<h1 class="title">Mock Exam Metrics</h1>
+<div class="analytics-container">
+	<div class="analytics-wrapper">
+		<!-- Header -->
+		<div class="analytics-header">
+			<h1 class="analytics-title">Mock Exam Metrics</h1>
+			<p class="analytics-subtitle">Comprehensive performance analysis across mock exam attempts and retakes</p>
+		</div>
 
 		{#if loading}
-			<div class="notification is-info">
-				<p>Loading metrics...</p>
+			<div class="loading-state">
+				<div class="spinner"></div>
+				<p class="loading-text">Loading metrics...</p>
 			</div>
 		{:else if errorMsg}
-			<article class="message is-danger">
-				<div class="message-body">{errorMsg}</div>
-			</article>
+			<div class="error-state">
+				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="10"></circle>
+					<line x1="12" y1="8" x2="12" y2="12"></line>
+					<line x1="12" y1="16" x2="12.01" y2="16"></line>
+				</svg>
+				<p class="error-text">{errorMsg}</p>
+			</div>
 		{:else}
 			<!-- Attempt Metrics -->
-			<div class="box">
-				<h2 class="subtitle">Mock Attempt Metrics</h2>
-				<p class="subtitle is-7">
-					One row per retake attempt within a lineage (root → 2 → 3 …): attempt_number, accuracy, correct_count,
-					avg_rt_ms, omit_count, plus deltas vs the previous attempt.
-					How to read: Improvement = delta_accuracy > 0. Check speed–accuracy tradeoff via delta_avg_rt_ms vs
-					delta_accuracy. Stable coverage if items_answered stays similar across attempts.
-				</p>
-				<div class="table-container">
-					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
+			<div class="metric-card">
+				<div class="metric-header">
+					<h2 class="metric-title">Mock Attempt Metrics</h2>
+					<p class="metric-description">
+						Per-attempt performance showing accuracy, response times, and improvements. Positive deltas indicate improvement; watch speed-accuracy tradeoffs.
+					</p>
+				</div>
+				<div class="table-wrapper">
+					<table class="modern-analytics-table">
 						<thead>
-						<tr>
-							<th>Attempt</th>
-							<th>Time</th>
-							<th>Items</th>
-							<th>Correct</th>
-							<th>Accuracy</th>
-							<th>Avg RT (ms)</th>
-							<th>Omits</th>
-							<th>Δ Accuracy</th>
-							<th>Δ RT</th>
-							<th>Δ Correct</th>
-							<th>Δ Items</th>
-						</tr>
+							<tr>
+								<th>Attempt</th>
+								<th>Time</th>
+								<th class="col-number">Items</th>
+								<th class="col-number">Correct</th>
+								<th class="col-number">Accuracy</th>
+								<th class="col-number">Avg RT (ms)</th>
+								<th class="col-number">Omits</th>
+								<th class="col-number">Δ Accuracy</th>
+								<th class="col-number">Δ RT</th>
+								<th class="col-number">Δ Correct</th>
+								<th class="col-number">Δ Items</th>
+							</tr>
 						</thead>
 						<tbody>
-						{#if attemptMetrics.length === 0}
-							<tr>
-								<td colspan="11" class="has-text-centered">No data available</td>
-							</tr>
-						{:else}
-							{#each attemptMetrics as metric}
+							{#if attemptMetrics.length === 0}
 								<tr>
-									<td>{metric.attempt_number}</td>
-									<td>{formatDateTime(metric.att_time)}</td>
-									<td>{metric.items_answered}</td>
-									<td>{metric.correct_count}</td>
-									<td>{formatPercent(metric.accuracy)}</td>
-									<td>{metric.avg_rt_ms}</td>
-									<td>{metric.omit_count}</td>
-									<td>{metric.delta_accuracy ?? '-'}</td>
-									<td>{metric.delta_avg_rt_ms ?? '-'}</td>
-									<td>{metric.delta_correct ?? '-'}</td>
-									<td>{metric.delta_items ?? '-'}</td>
+									<td colspan="11" class="empty-cell">No data available</td>
 								</tr>
-							{/each}
-						{/if}
+							{:else}
+								{#each attemptMetrics as metric}
+									<tr>
+										<td><span class="attempt-badge">{metric.attempt_number}</span></td>
+										<td class="time-cell">{formatDateTime(metric.att_time)}</td>
+										<td class="col-number">{metric.items_answered}</td>
+										<td class="col-number">{metric.correct_count}</td>
+										<td class="col-number"><span class="metric-value">{formatPercent(metric.accuracy)}</span></td>
+										<td class="col-number"><span class="metric-value">{metric.avg_rt_ms}</span></td>
+										<td class="col-number">{metric.omit_count}</td>
+										<td class="col-number delta-cell">{metric.delta_accuracy ?? '—'}</td>
+										<td class="col-number delta-cell">{metric.delta_avg_rt_ms ?? '—'}</td>
+										<td class="col-number delta-cell">{metric.delta_correct ?? '—'}</td>
+										<td class="col-number delta-cell">{metric.delta_items ?? '—'}</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
 				</div>
 			</div>
 
 			<!-- Series Slope -->
-			<div class="box">
-				<h2 class="subtitle">Mock Series Slope</h2>
-				<p class="subtitle is-7">
-					One row per lineage: approx_slope_per_attempt and attempts_so_far.
-					How to read: Positive slope = getting better each retake (e.g., +0.10 ≈ +10 pts/attempt). Zero = flat.
-					Negative = regression. Use alongside the per-attempt chart for shape.
-				</p>
-				<div class="table-container">
-					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
+			<div class="metric-card">
+				<div class="metric-header">
+					<h2 class="metric-title">Mock Series Slope</h2>
+					<p class="metric-description">
+						Trend analysis per exam lineage. Positive slope = improvement per attempt; negative = regression.
+					</p>
+				</div>
+				<div class="table-wrapper">
+					<table class="modern-analytics-table">
 						<thead>
-						<tr>
-							<th>Assessment ID</th>
-							<th>Root Instance ID</th>
-							<th>Slope per Attempt</th>
-							<th>Attempts So Far</th>
-						</tr>
+							<tr>
+								<th>Assessment ID</th>
+								<th>Root Instance ID</th>
+								<th class="col-number">Slope per Attempt</th>
+								<th class="col-number">Attempts So Far</th>
+							</tr>
 						</thead>
 						<tbody>
-						{#if seriesSlopes.length === 0}
-							<tr>
-								<td colspan="4" class="has-text-centered">No data available</td>
-							</tr>
-						{:else}
-							{#each seriesSlopes as slope}
+							{#if seriesSlopes.length === 0}
 								<tr>
-									<td class="is-family-monospace" style="font-size: 0.85em;"
-									>{slope.assessment_id}</td
-									>
-									<td class="is-family-monospace" style="font-size: 0.85em;"
-									>{slope.root_instance_id}</td
-									>
-									<td>{formatNumber(slope.approx_slope_per_attempt, 4)}</td>
-									<td>{slope.attempts_so_far}</td>
+									<td colspan="4" class="empty-cell">No data available</td>
 								</tr>
-							{/each}
-						{/if}
+							{:else}
+								{#each seriesSlopes as slope}
+									<tr>
+										<td class="id-cell">{slope.assessment_id}</td>
+										<td class="id-cell">{slope.root_instance_id}</td>
+										<td class="col-number"><span class="metric-value">{formatNumber(slope.approx_slope_per_attempt, 4)}</span></td>
+										<td class="col-number">{slope.attempts_so_far}</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
 				</div>
 			</div>
 
 			<!-- Item Flips -->
-			<div class="box">
-				<h2 class="subtitle">Mock Item Flips</h2>
-				<p class="subtitle is-7">
-					One row per question per attempt in a lineage: question_id, stem, hierarchy (subject/topic/subtopic), x_prev,
-					x_curr, and flip_class (wrong_to_right, right_to_wrong, persistent_wrong, persistent_right, first_seen).
-					How to read:
-					Focus remediation on right_to_wrong and persistent_wrong.
-					Celebrate wrong_to_right.
-					Treat first_seen as coverage (not a flip); exclude it from flip-rate calculations.
-				</p>
+			<div class="metric-card">
+				<div class="metric-header">
+					<h2 class="metric-title">Mock Item Flips</h2>
+					<p class="metric-description">
+						Question-level performance changes across attempts. Focus on wrong→right improvements and right→wrong regressions.
+					</p>
+				</div>
+
 				<!-- Filters: Subject / Topic / Subtopic -->
-				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
-					<div class="select is-small">
-						<select bind:value={selectedSubject} aria-label="Filter by subject">
+				<div class="filters-row">
+					<div class="filter-group">
+						<label class="filter-label">Subject</label>
+						<select bind:value={selectedSubject} class="modern-select" aria-label="Filter by subject">
 							<option value=''>All Subjects</option>
 							{#each subjectOptions as s}
 								<option value={s}>{s}</option>
 							{/each}
 						</select>
 					</div>
-					<div class="select is-small">
-						<select bind:value={selectedTopic} aria-label="Filter by topic">
+					<div class="filter-group">
+						<label class="filter-label">Topic</label>
+						<select bind:value={selectedTopic} class="modern-select" aria-label="Filter by topic">
 							<option value=''>All Topics</option>
 							{#each topicOptions as t}
 								<option value={t}>{t}</option>
 							{/each}
 						</select>
 					</div>
-					<div class="select is-small">
-						<select bind:value={selectedSubtopic} aria-label="Filter by subtopic">
+					<div class="filter-group">
+						<label class="filter-label">Subtopic</label>
+						<select bind:value={selectedSubtopic} class="modern-select" aria-label="Filter by subtopic">
 							<option value=''>All Subtopics</option>
 							{#each subtopicOptions as st}
 								<option value={st}>{st}</option>
@@ -539,101 +545,119 @@
 					</div>
 				</div>
 
-				<div class="table-container">
-					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
+				<div class="table-wrapper">
+					<table class="modern-analytics-table">
 						<thead>
-						<tr>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFlipSort('subject')}>
-									<span>Subject</span>
-									<span class="icon is-small ml-1">
-										{#if flipSortKey === 'subject' && flipSortDir === 'asc'}▲{:else if flipSortKey === 'subject' && flipSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFlipSort('topic')}>
-									<span>Topic</span>
-									<span class="icon is-small ml-1">
-										{#if flipSortKey === 'topic' && flipSortDir === 'asc'}▲{:else if flipSortKey === 'topic' && flipSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFlipSort('subtopic')}>
-									<span>Subtopic</span>
-									<span class="icon is-small ml-1">
-										{#if flipSortKey === 'subtopic' && flipSortDir === 'asc'}▲{:else if flipSortKey === 'subtopic' && flipSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>Question</th>
-							<th>Attempt</th>
-							<th>Previous</th>
-							<th>Current</th>
-							<th>Flip Class</th>
-						</tr>
+							<tr>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setFlipSort('subject')}>
+										Subject
+										<span class="sort-icon">
+											{#if flipSortKey === 'subject' && flipSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if flipSortKey === 'subject' && flipSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setFlipSort('topic')}>
+										Topic
+										<span class="sort-icon">
+											{#if flipSortKey === 'topic' && flipSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if flipSortKey === 'topic' && flipSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setFlipSort('subtopic')}>
+										Subtopic
+										<span class="sort-icon">
+											{#if flipSortKey === 'subtopic' && flipSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if flipSortKey === 'subtopic' && flipSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>Question</th>
+								<th class="col-number">Attempt</th>
+								<th class="col-number">Previous</th>
+								<th class="col-number">Current</th>
+								<th>Flip Class</th>
+							</tr>
 						</thead>
 						<tbody>
-						{#if sortedItemFlips.length === 0}
-							<tr>
-								<td colspan="8" class="has-text-centered">No data available</td>
-							</tr>
-						{:else}
-							{#each sortedItemFlips as flip}
+							{#if sortedItemFlips.length === 0}
 								<tr>
-									<td>{flip.subject_name}</td>
-									<td>{flip.topic_name}</td>
-									<td>{flip.subtopic_name}</td>
-									<td>{flip.stem}</td>
-									<td>{flip.attempt_number}</td>
-									<td>{flip.x_prev}</td>
-									<td>{flip.x_curr}</td>
-									<td>
-											<span
-												class="tag {flip.flip_class === 'wrong_to_right'
-													? 'is-success'
-													: 'is-danger'}"
-											>
-												{flip.flip_class}
-											</span>
-									</td>
+									<td colspan="8" class="empty-cell">No data available</td>
 								</tr>
-							{/each}
-						{/if}
+							{:else}
+								{#each sortedItemFlips as flip}
+									<tr>
+										<td>{flip.subject_name}</td>
+										<td>{flip.topic_name}</td>
+										<td>{flip.subtopic_name}</td>
+										<td class="question-cell">{flip.stem}</td>
+										<td class="col-number"><span class="attempt-badge">{flip.attempt_number}</span></td>
+										<td class="col-number">{flip.x_prev}</td>
+										<td class="col-number">{flip.x_curr}</td>
+										<td>
+											<span class="flip-badge flip-{flip.flip_class}">
+												{flip.flip_class.replace(/_/g, ' ')}
+											</span>
+										</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
 				</div>
 			</div>
 
 			<!-- Flips by Subtopic -->
-			<div class="box">
-				<h2 class="subtitle">Flips by Subtopic</h2>
-				<p class="subtitle is-7">
-					What it returns: Flip counts per subtopic (with names): cnt_w2r, cnt_r2w, cnt_persist_wrong,
-					cnt_persist_right.
-					How to read: Use net improvement = cnt_w2r - cnt_r2w. Prioritize subtopics with high cnt_r2w
-				</p>
+			<div class="metric-card">
+				<div class="metric-header">
+					<h2 class="metric-title">Flips by Subtopic</h2>
+					<p class="metric-description">
+						Aggregate flip counts per subtopic. Net improvement = wrong→right minus right→wrong. Prioritize subtopics with high right→wrong counts.
+					</p>
+				</div>
+
 				<!-- Filters: Subject / Topic / Subtopic -->
-				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
-					<div class="select is-small">
-						<select bind:value={selectedSubjectFbs} aria-label="Filter FBS by subject">
+				<div class="filters-row">
+					<div class="filter-group">
+						<label class="filter-label">Subject</label>
+						<select bind:value={selectedSubjectFbs} class="modern-select" aria-label="Filter FBS by subject">
 							<option value=''>All Subjects</option>
 							{#each subjectOptionsFbs as s}
 								<option value={s}>{s}</option>
 							{/each}
 						</select>
 					</div>
-					<div class="select is-small">
-						<select bind:value={selectedTopicFbs} aria-label="Filter FBS by topic">
+					<div class="filter-group">
+						<label class="filter-label">Topic</label>
+						<select bind:value={selectedTopicFbs} class="modern-select" aria-label="Filter FBS by topic">
 							<option value=''>All Topics</option>
 							{#each topicOptionsFbs as t}
 								<option value={t}>{t}</option>
 							{/each}
 						</select>
 					</div>
-					<div class="select is-small">
-						<select bind:value={selectedSubtopicFbs} aria-label="Filter FBS by subtopic">
+					<div class="filter-group">
+						<label class="filter-label">Subtopic</label>
+						<select bind:value={selectedSubtopicFbs} class="modern-select" aria-label="Filter FBS by subtopic">
 							<option value=''>All Subtopics</option>
 							{#each subtopicOptionsFbs as st}
 								<option value={st}>{st}</option>
@@ -642,94 +666,113 @@
 					</div>
 				</div>
 
-				<div class="table-container">
-					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
+				<div class="table-wrapper">
+					<table class="modern-analytics-table">
 						<thead>
-						<tr>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFbsSort('subject')}>
-									<span>Subject</span>
-									<span class="icon is-small ml-1">
-										{#if fbsSortKey === 'subject' && fbsSortDir === 'asc'}▲{:else if fbsSortKey === 'subject' && fbsSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFbsSort('topic')}>
-									<span>Topic</span>
-									<span class="icon is-small ml-1">
-										{#if fbsSortKey === 'topic' && fbsSortDir === 'asc'}▲{:else if fbsSortKey === 'topic' && fbsSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setFbsSort('subtopic')}>
-									<span>Subtopic</span>
-									<span class="icon is-small ml-1">
-										{#if fbsSortKey === 'subtopic' && fbsSortDir === 'asc'}▲{:else if fbsSortKey === 'subtopic' && fbsSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>Wrong → Right</th>
-							<th>Right → Wrong</th>
-							<th>Persist Wrong</th>
-							<th>Persist Right</th>
-						</tr>
+							<tr>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setFbsSort('subject')}>
+										Subject
+										<span class="sort-icon">
+											{#if fbsSortKey === 'subject' && fbsSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if fbsSortKey === 'subject' && fbsSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setFbsSort('topic')}>
+										Topic
+										<span class="sort-icon">
+											{#if fbsSortKey === 'topic' && fbsSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if fbsSortKey === 'topic' && fbsSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setFbsSort('subtopic')}>
+										Subtopic
+										<span class="sort-icon">
+											{#if fbsSortKey === 'subtopic' && fbsSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if fbsSortKey === 'subtopic' && fbsSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th class="col-number">Wrong → Right</th>
+								<th class="col-number">Right → Wrong</th>
+								<th class="col-number">Persist Wrong</th>
+								<th class="col-number">Persist Right</th>
+							</tr>
 						</thead>
 						<tbody>
-						{#if sortedFlipsBySubtopic.length === 0}
-							<tr>
-								<td colspan="7" class="has-text-centered">No data available</td>
-							</tr>
-						{:else}
-							{#each sortedFlipsBySubtopic as flip}
+							{#if sortedFlipsBySubtopic.length === 0}
 								<tr>
-									<td>{flip.subject_name}</td>
-									<td>{flip.topic_name}</td>
-									<td>{flip.subtopic_name}</td>
-									<td class="has-text-success">{flip.cnt_w2r}</td>
-									<td class="has-text-danger">{flip.cnt_r2w}</td>
-									<td>{flip.cnt_persist_wrong}</td>
-									<td>{flip.cnt_persist_right}</td>
+									<td colspan="7" class="empty-cell">No data available</td>
 								</tr>
-							{/each}
-						{/if}
+							{:else}
+								{#each sortedFlipsBySubtopic as flip}
+									<tr>
+										<td>{flip.subject_name}</td>
+										<td>{flip.topic_name}</td>
+										<td>{flip.subtopic_name}</td>
+										<td class="col-number"><span style="color: #059669; font-weight: 600;">{flip.cnt_w2r}</span></td>
+										<td class="col-number"><span style="color: #dc2626; font-weight: 600;">{flip.cnt_r2w}</span></td>
+										<td class="col-number">{flip.cnt_persist_wrong}</td>
+										<td class="col-number">{flip.cnt_persist_right}</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
 				</div>
 			</div>
 
 			<!-- Subtopic Trends -->
-			<div class="box">
-				<h2 class="subtitle">Subtopic Trends</h2>
-				<p class="subtitle is-7">
-					What it returns: Per subtopic × attempt within a lineage: n (items), k (correct), accuracy, and
-					delta_accuracy_subtopic vs prior attempt, plus subject/topic/subtopic names.
-					How to read: Rising mastery: delta_accuracy_subtopic > 0 with reasonable n (rule-of-thumb: n ≥ 3); Watch
-					regressions (delta &lt; 0) and low-n volatility.Plot as sparklines by subtopic with a mastery line (e.g.,
-					0.85).
-				</p>
+			<div class="metric-card">
+				<div class="metric-header">
+					<h2 class="metric-title">Subtopic Trends</h2>
+					<p class="metric-description">
+						Performance changes per subtopic across attempts. Positive delta indicates improving mastery; watch regressions and low sample sizes.
+					</p>
+				</div>
 
 				<!-- Filters: Subject / Topic / Subtopic -->
-				<div class="filters is-flex is-flex-wrap-wrap mb-3" style="gap: 0.75rem;">
-					<div class="select is-small">
-						<select bind:value={stSelectedSubject} aria-label="Filter ST by subject">
+				<div class="filters-row">
+					<div class="filter-group">
+						<label class="filter-label">Subject</label>
+						<select bind:value={stSelectedSubject} class="modern-select" aria-label="Filter ST by subject">
 							<option value=''>All Subjects</option>
 							{#each stSubjectOptions as s}
 								<option value={s}>{s}</option>
 							{/each}
 						</select>
 					</div>
-					<div class="select is-small">
-						<select bind:value={stSelectedTopic} aria-label="Filter ST by topic">
+					<div class="filter-group">
+						<label class="filter-label">Topic</label>
+						<select bind:value={stSelectedTopic} class="modern-select" aria-label="Filter ST by topic">
 							<option value=''>All Topics</option>
 							{#each stTopicOptions as t}
 								<option value={t}>{t}</option>
 							{/each}
 						</select>
 					</div>
-					<div class="select is-small">
-						<select bind:value={stSelectedSubtopic} aria-label="Filter ST by subtopic">
+					<div class="filter-group">
+						<label class="filter-label">Subtopic</label>
+						<select bind:value={stSelectedSubtopic} class="modern-select" aria-label="Filter ST by subtopic">
 							<option value=''>All Subtopics</option>
 							{#each stSubtopicOptions as st}
 								<option value={st}>{st}</option>
@@ -738,101 +781,490 @@
 					</div>
 				</div>
 
-				<div class="table-container">
-					<table class="table is-striped is-fullwidth is-hoverable is-narrow">
+				<div class="table-wrapper">
+					<table class="modern-analytics-table">
 						<thead>
-						<tr>
-							<th>Attempt</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('subject')}>
-									<span>Subject</span>
-									<span class="icon is-small ml-1">
-										{#if stSortKey === 'subject' && stSortDir === 'asc'}▲{:else if stSortKey === 'subject' && stSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('topic')}>
-									<span>Topic</span>
-									<span class="icon is-small ml-1">
-										{#if stSortKey === 'topic' && stSortDir === 'asc'}▲{:else if stSortKey === 'topic' && stSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('subtopic')}>
-									<span>Subtopic</span>
-									<span class="icon is-small ml-1">
-										{#if stSortKey === 'subtopic' && stSortDir === 'asc'}▲{:else if stSortKey === 'subtopic' && stSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>N</th>
-							<th>K (Correct)</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('accuracy')}>
-									<span>Accuracy</span>
-									<span class="icon is-small ml-1">
-										{#if stSortKey === 'accuracy' && stSortDir === 'asc'}▲{:else if stSortKey === 'accuracy' && stSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-							<th>
-								<button class="button is-white is-small px-0 has-text-left" on:click={() => setStSort('delta')}>
-									<span>Δ Accuracy</span>
-									<span class="icon is-small ml-1">
-										{#if stSortKey === 'delta' && stSortDir === 'asc'}▲{:else if stSortKey === 'delta' && stSortDir === 'desc'}▼{:else}◀▶{/if}
-									</span>
-								</button>
-							</th>
-						</tr>
+							<tr>
+								<th class="col-number">Attempt</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setStSort('subject')}>
+										Subject
+										<span class="sort-icon">
+											{#if stSortKey === 'subject' && stSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if stSortKey === 'subject' && stSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setStSort('topic')}>
+										Topic
+										<span class="sort-icon">
+											{#if stSortKey === 'topic' && stSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if stSortKey === 'topic' && stSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th>
+									<button class="sort-btn" type="button" on:click={() => setStSort('subtopic')}>
+										Subtopic
+										<span class="sort-icon">
+											{#if stSortKey === 'subtopic' && stSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if stSortKey === 'subtopic' && stSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th class="col-number">N</th>
+								<th class="col-number">K (Correct)</th>
+								<th class="col-number">
+									<button class="sort-btn" type="button" on:click={() => setStSort('accuracy')}>
+										Accuracy
+										<span class="sort-icon">
+											{#if stSortKey === 'accuracy' && stSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if stSortKey === 'accuracy' && stSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+								<th class="col-number">
+									<button class="sort-btn" type="button" on:click={() => setStSort('delta')}>
+										Δ Accuracy
+										<span class="sort-icon">
+											{#if stSortKey === 'delta' && stSortDir === 'asc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+											{:else if stSortKey === 'delta' && stSortDir === 'desc'}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+											{/if}
+										</span>
+									</button>
+								</th>
+							</tr>
 						</thead>
 						<tbody>
-						{#if sortedSubtopicTrends.length === 0}
-							<tr>
-								<td colspan="8" class="has-text-centered">No data available</td>
-							</tr>
-						{:else}
-							{#each sortedSubtopicTrends as trend}
+							{#if sortedSubtopicTrends.length === 0}
 								<tr>
-									<td>{trend.attempt_number}</td>
-									<td>{trend.subject_name}</td>
-									<td>{trend.topic_name}</td>
-									<td>{trend.subtopic_name}</td>
-									<td>{trend.n}</td>
-									<td>{trend.k}</td>
-									<td>{formatPercent(trend.accuracy)}</td>
-									<td>{trend.delta_accuracy_subtopic ?? '-'}</td>
+									<td colspan="8" class="empty-cell">No data available</td>
 								</tr>
-							{/each}
-						{/if}
+							{:else}
+								{#each sortedSubtopicTrends as trend}
+									<tr>
+										<td class="col-number"><span class="attempt-badge">{trend.attempt_number}</span></td>
+										<td>{trend.subject_name}</td>
+										<td>{trend.topic_name}</td>
+										<td>{trend.subtopic_name}</td>
+										<td class="col-number">{trend.n}</td>
+										<td class="col-number">{trend.k}</td>
+										<td class="col-number"><span class="metric-value">{formatPercent(trend.accuracy)}</span></td>
+										<td class="col-number delta-cell">{trend.delta_accuracy_subtopic ?? '—'}</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
 				</div>
 			</div>
 		{/if}
 	</div>
-</section>
+</div>
 
 <style>
-    .box {
-        margin-bottom: 2rem;
+    /* Container */
+    .analytics-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #faf9fc 0%, #f5f3f7 100%);
+        padding: 2rem 1rem;
     }
 
-    .table-container {
-        overflow-x: auto;
+    .analytics-wrapper {
+        max-width: 1400px;
+        margin: 0 auto;
     }
 
-    table td, table th {
-        line-height: 1rem;
-        font-size: 0.85rem !important;
+    /* Header */
+    .analytics-header {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(139, 92, 246, 0.1);
     }
 
-    .subtitle {
+    .analytics-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .analytics-subtitle {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* Loading/Error States */
+    .loading-state,
+    .error-state {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f3f4f6;
+        border-top-color: #8b5cf6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-text,
+    .error-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .error-state svg {
+        color: #ef4444;
         margin-bottom: 1rem;
     }
 
-    .filters .select select {
-        min-width: 180px;
+    /* Metric Card */
+    .metric-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .metric-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .metric-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .metric-description {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* Filters */
+    .filters-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #f3f4f6;
+        background: linear-gradient(135deg, #faf9fc, #f9f8fb);
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 200px;
+    }
+
+    .filter-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .modern-select {
+        padding: 0.625rem 0.875rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #374151;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .modern-select:hover {
+        border-color: #8b5cf6;
+    }
+
+    .modern-select:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    /* Table */
+    .table-wrapper {
+        overflow-x: auto;
+    }
+
+    .modern-analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .modern-analytics-table thead {
+        background: linear-gradient(135deg, #faf9fc, #f5f3f7);
+        border-bottom: 2px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .modern-analytics-table thead th {
+        padding: 1rem;
+        text-align: left;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .modern-analytics-table thead th.col-number {
+        text-align: right;
+    }
+
+    .modern-analytics-table tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+        transition: all 0.15s ease;
+    }
+
+    .modern-analytics-table tbody tr:hover {
+        background: #faf9fc;
+    }
+
+    .modern-analytics-table tbody td {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+
+    .modern-analytics-table tbody td.col-number {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: #6b7280;
+    }
+
+    /* Sort Button */
+    .sort-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        background: transparent;
+        border: none;
+        padding: 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+    .sort-btn:hover {
+        color: #8b5cf6;
+    }
+
+    .sort-icon {
+        display: flex;
+        align-items: center;
+        color: #9ca3af;
+        transition: color 0.2s ease;
+    }
+
+    .sort-btn:hover .sort-icon {
+        color: #8b5cf6;
+    }
+
+    /* Cell Types */
+    .empty-cell {
+        text-align: center;
+        color: #9ca3af;
+        font-style: italic;
+        padding: 2rem !important;
+    }
+
+    .attempt-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 0.5rem;
+        background: linear-gradient(135deg, #a855f7, #8b5cf6);
+        color: #ffffff;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .time-cell {
+        font-size: 0.8125rem;
+        color: #6b7280;
+        white-space: nowrap;
+    }
+
+    .id-cell {
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 0.75rem;
+        color: #6b7280;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .question-cell {
+        max-width: 400px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .metric-value {
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .delta-cell {
+        font-variant-numeric: tabular-nums;
+        color: #9ca3af;
+    }
+
+    /* Flip Badges */
+    .flip-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: capitalize;
+        white-space: nowrap;
+    }
+
+    .flip-badge.flip-wrong_to_right {
+        background: rgba(16, 185, 129, 0.15);
+        color: #059669;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .flip-badge.flip-right_to_wrong {
+        background: rgba(239, 68, 68, 0.15);
+        color: #dc2626;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .flip-badge.flip-persistent_right {
+        background: rgba(99, 102, 241, 0.15);
+        color: #4f46e5;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .flip-badge.flip-persistent_wrong {
+        background: rgba(245, 158, 11, 0.15);
+        color: #d97706;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .flip-badge.flip-first_seen {
+        background: rgba(156, 163, 175, 0.15);
+        color: #6b7280;
+        border: 1px solid rgba(156, 163, 175, 0.3);
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .analytics-container {
+            padding: 1rem 0.5rem;
+        }
+
+        .analytics-header {
+            padding: 1.5rem;
+        }
+
+        .analytics-title {
+            font-size: 1.5rem;
+        }
+
+        .analytics-subtitle {
+            font-size: 0.875rem;
+        }
+
+        .metric-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .filters-row {
+            flex-direction: column;
+            padding: 1rem 1.5rem;
+        }
+
+        .filter-group {
+            min-width: 100%;
+        }
+
+        .modern-analytics-table {
+            font-size: 0.8125rem;
+        }
+
+        .modern-analytics-table thead th,
+        .modern-analytics-table tbody td {
+            padding: 0.75rem 0.5rem;
+        }
+
+        .question-cell {
+            max-width: 200px;
+        }
     }
 </style>

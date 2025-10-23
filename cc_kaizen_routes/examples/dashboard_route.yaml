@@ -1,0 +1,15 @@
+# Example configuration for generating a dashboard route with card grid
+# Usage: cookiecutter cc_kaizen_routes --no-input --config-file examples/dashboard_route.yaml
+
+default_context:
+  route_name: "example_dashboard"
+  route_display_name: "Example Dashboard"
+  route_description: "Overview dashboard with metric cards"
+  route_type: "dashboard"
+  include_filters: "no"
+  include_table: "no"
+  include_modal: "yes"
+  primary_color: "#a855f7"
+  secondary_color: "#8b5cf6"
+  accent_color: "#14b8a6"
+  author_name: "Kaizen Team"

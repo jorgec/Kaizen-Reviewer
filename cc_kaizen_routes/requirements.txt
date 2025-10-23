@@ -1,0 +1,26 @@
+# Cookiecutter - Template engine for project scaffolding
+cookiecutter>=2.5.0
+
+# Jinja2 - Templating engine (dependency of cookiecutter)
+Jinja2>=3.1.2
+
+# Arrow - For timestamp/datetime handling in templates
+arrow>=1.3.0
+
+# Jinja2-time extension - For adding timestamps to templates
+jinja2-time>=0.2.0
+
+# Click - CLI framework (dependency of cookiecutter)
+click>=8.1.7
+
+# Binaryornot - For detecting binary files (dependency of cookiecutter)
+binaryornot>=0.4.4
+
+# PyYAML - For YAML support in templates
+PyYAML>=6.0.1
+
+# python-slugify - For creating URL-safe slugs
+python-slugify>=8.0.1
+
+# Rich - For beautiful terminal output
+rich>=13.7.0

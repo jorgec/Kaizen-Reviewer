@@ -1,0 +1,36 @@
+{
+  "route_name": "my_feature",
+  "route_display_name": "My Feature",
+  "route_description": "A modern SaaS-style feature page",
+  "route_type": [
+    "analytics",
+    "dashboard",
+    "form",
+    "list",
+    "static"
+  ],
+  "include_filters": [
+    "yes",
+    "no"
+  ],
+  "include_table": [
+    "yes",
+    "no"
+  ],
+  "include_modal": [
+    "yes",
+    "no"
+  ],
+  "primary_color": "#a855f7",
+  "secondary_color": "#8b5cf6",
+  "accent_color": "#14b8a6",
+  "author_name": "Kaizen Team",
+  "_copy_without_render": [
+    "*.svg",
+    "*.png",
+    "*.jpg"
+  ],
+  "_extensions": [
+    "jinja2_time.TimeExtension"
+  ]
+}
