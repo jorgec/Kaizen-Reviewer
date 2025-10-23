@@ -8,6 +8,7 @@
 	let selectedOrgId: string = '';
 	let scrolled = false;
 	let drawerOpen = false;
+	let userMenuOpen = false;
 
 	const unsubscribe = userStore.subscribe((value) => {
 		user = value;
@@ -40,6 +41,7 @@
 			}
 
 			window.addEventListener('scroll', handleScroll);
+			document.addEventListener('click', handleClickOutside);
 		}
 	});
 
@@ -63,6 +65,7 @@
 		unsubscribe();
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('scroll', handleScroll);
+			document.removeEventListener('click', handleClickOutside);
 		}
 	});
 
@@ -94,33 +97,63 @@
 		drawerOpen = false;
 	}
 
+	function toggleUserMenu() {
+		userMenuOpen = !userMenuOpen;
+	}
+
+	function closeUserMenu() {
+		userMenuOpen = false;
+	}
+
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.user-menu-wrapper')) {
+			closeUserMenu();
+		}
+	}
+
 	$: selectedDisciplineId = user?.currentDiscipline?.discipline_id ?? null;
 	$: selectedOrgId = user?.currentOrg?.org_id ?? null;
 </script>
 
 <nav
-	class="navbar has-background-dark has-shadow"
+	class="navbar"
 	class:shrink={scrolled}
-	style="position: fixed; width: 100%; top: 0; z-index: 10;"
 >
-	<div
-		class="container is-flex is-justify-content-space-between is-align-items-center py-3 px-5"
-	>
-		<a href="/dashboard" class="navbar-brand-link">
-			<h1 class="title is-5" style="margin: 0; color: #eee">Kaizen</h1>
+	<div class="navbar-container">
+		<!-- Brand on the left -->
+		<a href="/dashboard" class="navbar-brand">
+			<div class="brand-logo">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="logo-icon"
+				>
+					<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+				</svg>
+				<h1 class="brand-title">Kaizen</h1>
+			</div>
 		</a>
 
-		<!-- Hamburger button visible on small screens -->
-		{#if user?.display_name}
-			<button
-				class="button is-dark is-medium hamburger-button"
-				aria-label="Toggle menu"
-				on:click={toggleDrawer}
-				aria-expanded={drawerOpen}
-				aria-controls="drawer-menu"
-				type="button"
-			>
-				<span class="icon">
+		<!-- Navigation on the right -->
+		<div class="navbar-right">
+			{#if user?.display_name}
+				<!-- Hamburger button visible on small screens -->
+				<button
+					class="hamburger-button"
+					aria-label="Toggle menu"
+					on:click={toggleDrawer}
+					aria-expanded={drawerOpen}
+					aria-controls="drawer-menu"
+					type="button"
+				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="24"
@@ -131,55 +164,126 @@
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						class="feather feather-menu"
 					>
 						<line x1="3" y1="12" x2="21" y2="12"></line>
 						<line x1="3" y1="6" x2="21" y2="6"></line>
 						<line x1="3" y1="18" x2="21" y2="18"></line>
 					</svg>
-				</span>
-			</button>
-		{/if}
+				</button>
 
-		<!-- Desktop menu visible on large screens -->
-		{#if user?.display_name}
-			<div class="desktop-menu is-flex is-align-items-center">
-				{#if user?.orgs && user.orgs.length > 1}
-					<div class="org-select">
-						<select
-							class="select is-small"
-							on:change={handleOrgChange}
-							bind:value={selectedOrgId}
-						>
-							{#each user.orgs as d}
-								<option value={d.org_id}>
-									{d.org_name ?? d.org_code ?? d.org_id}
-								</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
-				{#if user?.disciplines && user.disciplines.length > 1}
-					<div class="discipline-select">
-						<select
-							class="select is-small"
-							on:change={handleDisciplineChange}
-							bind:value={selectedDisciplineId}
-						>
-							{#each user.disciplines as d}
-								<option value={d.discipline_id}>
-									{d.discipline_name ?? d.discipline_code ?? d.discipline_id}
-								</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
+				<!-- Desktop menu visible on large screens -->
+				<div class="desktop-menu">
+					{#if user?.orgs && user.orgs.length > 1}
+						<div class="nav-select-wrapper">
+							<select
+								class="nav-select"
+								on:change={handleOrgChange}
+								bind:value={selectedOrgId}
+							>
+								{#each user.orgs as d}
+									<option value={d.org_id}>
+										{d.org_name ?? d.org_code ?? d.org_id}
+									</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+					{#if user?.disciplines && user.disciplines.length > 1}
+						<div class="nav-select-wrapper">
+							<select
+								class="nav-select"
+								on:change={handleDisciplineChange}
+								bind:value={selectedDisciplineId}
+							>
+								{#each user.disciplines as d}
+									<option value={d.discipline_id}>
+										{d.discipline_name ?? d.discipline_code ?? d.discipline_id}
+									</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
 
-				<button class="button is-danger is-small ml-3" on:click={logout}>Hi {user.display_name}. Log out?</button>
-			</div>
-		{:else}
-			<a href="/login" class="button is-primary">Login</a>
-		{/if}
+					<!-- User menu dropdown -->
+					<div class="user-menu-wrapper">
+						<button
+							class="user-icon-button"
+							on:click={toggleUserMenu}
+							aria-label="User menu"
+							aria-expanded={userMenuOpen}
+							type="button"
+						>
+							<span class="icon">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+									<circle cx="12" cy="7" r="4"></circle>
+								</svg>
+							</span>
+						</button>
+						{#if userMenuOpen}
+							<div class="user-dropdown">
+								<div class="dropdown-header">
+									<div class="user-name">{user.display_name}</div>
+									{#if user.email}
+										<div class="user-email">{user.email}</div>
+									{/if}
+									<div class="user-email">Org: {user.orgs[0].org_name}</div>
+								</div>
+								<hr class="dropdown-divider" />
+								<button class="dropdown-item logout-button" on:click={logout}>
+									<span class="icon is-small">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="16"
+											height="16"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+											<polyline points="16 17 21 12 16 7"></polyline>
+											<line x1="21" y1="12" x2="9" y2="12"></line>
+										</svg>
+									</span>
+									<span>Logout</span>
+								</button>
+							</div>
+						{/if}
+					</div>
+				</div>
+			{:else}
+				<a href="/login" class="login-button">
+					<span>Login</span>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<line x1="5" y1="12" x2="19" y2="12"></line>
+						<polyline points="12 5 19 12 12 19"></polyline>
+					</svg>
+				</a>
+			{/if}
+		</div>
 	</div>
 </nav>
 
@@ -187,7 +291,7 @@
 {#if drawerOpen}
 	<div class="drawer-overlay" on:click={closeDrawer} aria-hidden="true"></div>
 {/if}
-<aside
+<div
 	id="drawer-menu"
 	class:drawer-open={drawerOpen}
 	class="drawer-menu has-background-dark"
@@ -196,6 +300,30 @@
 >
 	{#if user?.display_name}
 		<nav class="menu-content">
+			<!-- User info section -->
+			<div class="drawer-user-info">
+				<div class="user-avatar">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="40"
+						height="40"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+						<circle cx="12" cy="7" r="4"></circle>
+					</svg>
+				</div>
+				<div class="drawer-user-name">{user.display_name}</div>
+				{#if user.email}
+					<div class="drawer-user-email">{user.email}</div>
+				{/if}
+			</div>
+
 			{#if user?.orgs && user.orgs.length > 1}
 				<div class="menu-item">
 					<label for="drawer-org-select" class="menu-label">Organization</label>
@@ -234,31 +362,208 @@
 
 			<div class="menu-item">
 				<button class="button is-danger is-fullwidth" on:click={logout}>
-					Log out ({user.display_name})
+					<span class="icon is-small">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+							<polyline points="16 17 21 12 16 7"></polyline>
+							<line x1="21" y1="12" x2="9" y2="12"></line>
+						</svg>
+					</span>
+					<span>Logout</span>
 				</button>
 			</div>
 		</nav>
 	{/if}
-</aside>
+</div>
 
-<section class="section">
-	<div class="container">
-		<slot />
-	</div>
-</section>
+<main class="main-content">
+	<slot />
+</main>
 
 <style>
+	/* Modern Navbar */
 	.navbar {
-		transition: background-color 0.3s ease, box-shadow 0.3s ease;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		width: 100%;
+		z-index: 1000;
+		background: rgba(17, 24, 39, 0.85);
+		backdrop-filter: blur(12px);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
 	}
 
+	.navbar.shrink {
+		background: rgba(17, 24, 39, 0.95);
+		box-shadow: 0 4px 32px rgba(0, 0, 0, 0.2);
+	}
+
+	.navbar-container {
+		padding: 0.875rem 2rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+	}
+
+	/* Brand Logo */
+	.navbar-brand {
+		text-decoration: none;
+		transition: transform 0.2s ease;
+		flex-shrink: 0;
+	}
+
+	.navbar-brand:hover {
+		transform: translateY(-1px);
+	}
+
+	.brand-logo {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+	}
+
+	.logo-icon {
+		color: #a855f7;
+		filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.4));
+	}
+
+	.brand-title {
+		font-family: 'Inter', sans-serif;
+		font-weight: 700;
+		font-size: 1.5rem;
+		margin: 0;
+		background: linear-gradient(135deg, #a855f7, #6366f1);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	/* Navigation Right Container */
+	.navbar-right {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 1rem;
+		width: 70%;
+		flex-shrink: 0;
+	}
+
+	/* Hamburger Button */
 	.hamburger-button {
 		display: none;
+		padding: 0.5rem;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		color: #e5e7eb;
+		cursor: pointer;
+		transition: all 0.2s ease;
 	}
 
+	.hamburger-button:hover {
+		background: rgba(255, 255, 255, 0.12);
+		border-color: rgba(168, 85, 247, 0.4);
+		color: #a855f7;
+	}
+
+	/* Desktop Menu */
 	.desktop-menu {
 		display: flex;
-		gap: 0.75rem;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	/* Nav Select Dropdowns */
+	.nav-select-wrapper {
+		position: relative;
+	}
+
+	.nav-select {
+		font-family: 'Inter', sans-serif;
+		font-size: 0.875rem;
+		font-weight: 500;
+		padding: 0.5rem 2.25rem 0.5rem 0.875rem;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		color: #e5e7eb;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		appearance: none;
+		min-width: 160px;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e5e7eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 0.625rem center;
+		background-size: 16px;
+	}
+
+	.nav-select:hover {
+		background: rgba(255, 255, 255, 0.12);
+		border-color: rgba(168, 85, 247, 0.3);
+	}
+
+	.nav-select:focus {
+		outline: none;
+		border-color: #a855f7;
+		box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+	}
+
+	.nav-select option {
+		background: #1f2937;
+		color: #e5e7eb;
+	}
+
+	/* Login Button */
+	.login-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 1.25rem;
+		background: linear-gradient(135deg, #a855f7, #6366f1);
+		color: white;
+		border: none;
+		border-radius: 8px;
+		font-family: 'Inter', sans-serif;
+		font-size: 0.9rem;
+		font-weight: 600;
+		text-decoration: none;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+	}
+
+	.login-button:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+		background: linear-gradient(135deg, #9333ea, #4f46e5);
+	}
+
+	.login-button svg {
+		transition: transform 0.2s ease;
+	}
+
+	.login-button:hover svg {
+		transform: translateX(2px);
+	}
+
+	/* Main Content */
+	.main-content {
+		padding-top: 70px;
+		min-height: 100vh;
 	}
 
 	/* Drawer styles */
@@ -315,12 +620,29 @@
 
 	/* Responsive styles */
 	@media (max-width: 768px) {
+		.navbar-container {
+			padding: 0.75rem 1.25rem;
+		}
+
+		.brand-title {
+			font-size: 1.25rem;
+		}
+
+		.logo-icon {
+			width: 20px;
+			height: 20px;
+		}
+
 		.hamburger-button {
-			display: inline-flex;
+			display: flex;
 		}
 
 		.desktop-menu {
 			display: none !important;
+		}
+
+		.main-content {
+			padding-top: 60px;
 		}
 	}
 
@@ -331,16 +653,142 @@
 		}
 	}
 
-	.org-select select,
-	.discipline-select select {
-		min-width: 180px;
-		padding: 0.25rem 0.75rem;
+	/* User menu dropdown styles */
+	.user-menu-wrapper {
+		position: relative;
 	}
 
-	.discipline-pill {
-		padding: 0.15rem 0.6rem;
-		background: #f2f4f7;
+	.user-icon-button {
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		color: #e5e7eb;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.user-icon-button:hover {
+		background: rgba(168, 85, 247, 0.15);
+		border-color: rgba(168, 85, 247, 0.4);
+		color: #a855f7;
+		transform: translateY(-1px);
+	}
+
+	.user-icon-button .icon {
+		margin: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.user-dropdown {
+		position: absolute;
+		top: calc(100% + 8px);
+		right: 0;
+		background-color: white;
+		border-radius: 6px;
+		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+		min-width: 240px;
+		z-index: 40;
+		overflow: hidden;
+	}
+
+	.dropdown-header {
+		padding: 1rem;
+		background-color: #f5f5f5;
+	}
+
+	.user-name {
+		font-weight: 600;
+		font-size: 0.95rem;
+		color: #363636;
+		margin-bottom: 0.25rem;
+	}
+
+	.user-email {
 		font-size: 0.85rem;
+		color: #7a7a7a;
+	}
+
+	.dropdown-divider {
+		margin: 0;
+		background-color: #e0e0e0;
+		height: 1px;
+		border: none;
+	}
+
+	.dropdown-item {
+		width: 100%;
+		padding: 0.75rem 1rem;
+		background: none;
+		border: none;
+		text-align: left;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		color: #363636;
+	}
+
+	.dropdown-item:hover {
+		background-color: #f5f5f5;
+	}
+
+	.logout-button {
+		color: #f14668;
+		font-weight: 500;
+	}
+
+	.logout-button:hover {
+		background-color: #feecf0;
+	}
+
+	/* Mobile drawer user info styles */
+	.drawer-user-info {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 1.5rem 1rem;
+		border-bottom: 1px solid #3a3a3a;
+		margin-bottom: 1rem;
+	}
+
+	.user-avatar {
+		width: 60px;
+		height: 60px;
+		border-radius: 50%;
+		background-color: #363636;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 0.75rem;
+		border: 2px solid #4a4a4a;
+	}
+
+	.user-avatar svg {
+		color: #ddd;
+	}
+
+	.drawer-user-name {
+		font-weight: 600;
+		font-size: 1.1rem;
+		color: #eee;
+		margin-bottom: 0.25rem;
+		text-align: center;
+	}
+
+	.drawer-user-email {
+		font-size: 0.85rem;
+		color: #aaa;
+		text-align: center;
 	}
 </style>
 
