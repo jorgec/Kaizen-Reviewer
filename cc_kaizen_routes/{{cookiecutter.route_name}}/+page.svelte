@@ -1,19 +1,32 @@
 <script lang="ts">
+
 	{% raw %}
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { supabase } from '$lib/supabaseClient';
+	import { userStore } from '$lib/stores/userStore';
+	import { goto } from '$app/navigation';
 
 	let loading = true;
 	let error: string | null = null;
 	let data: any = null;
+	let user: any;
+	const unsubscribe = userStore.subscribe((v) => (user = v));
 
 	async function loadData() {
 		try {
 			loading = true;
 			error = null;
-			const res = await fetch('/api/example');
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			data = await res.json();
+			const result = await supabase.rpc('', {
+				p_user_id: user.user_id,
+				p_org_id: user.orgs?.[0]?.org_id
+			});
+
+			if (result.error) {
+				error = result.error.message;
+			} else {
+				data = result.data;
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		} finally {
@@ -22,6 +35,10 @@
 	}
 
 	onMount(() => {
+		if (!user?.user_id) {
+			goto('/login');
+			return;
+		}
 		loadData();
 	});
 	{% endraw %}
