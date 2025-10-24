@@ -1,0 +1,99 @@
+{
+  "meta": {
+    "org_id": "11111111-1111-1111-1111-111111111111",
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "only_active": true
+  },
+  "disciplines": [
+    {
+      "discipline_id": 10,
+      "code": "CSE",
+      "name": "Civil Service Exam",
+      "banks": [
+        {
+          "bank_id": "7a1b9b3c-7e34-4d2a-9d23-6b8db8b5a3b1",
+          "slug": "cse-gen-english",
+          "name": "CSE General English",
+          "discipline_id": 10,
+          "question_count": 58,
+          "by_difficulty": { "easy": 20, "medium": 28, "hard": 10 },
+          "by_bloom": {
+            "remember": 12,
+            "understand": 22,
+            "apply": 15,
+            "analyze": 6,
+            "evaluate": 1,
+            "create": 0,
+            "unknown": 2
+          },
+          "subjects": [
+            {
+              "subject_id": 101,
+              "subject_name": "English",
+              "question_count": 58,
+              "by_difficulty": { "easy": 20, "medium": 28, "hard": 10 },
+              "by_bloom": {
+                "remember": 12,
+                "understand": 22,
+                "apply": 15,
+                "analyze": 6,
+                "evaluate": 1,
+                "create": 0,
+                "unknown": 2
+              },
+              "topics": [
+                {
+                  "topic_id": 201,
+                  "topic_name": "Grammar",
+                  "question_count": 35,
+                  "by_difficulty": { "easy": 12, "medium": 17, "hard": 6 },
+                  "by_bloom": {
+                    "remember": 8,
+                    "understand": 12,
+                    "apply": 9,
+                    "analyze": 4,
+                    "evaluate": 1,
+                    "create": 0,
+                    "unknown": 1
+                  },
+                  "subtopics": [
+                    {
+                      "subtopic_id": 401,
+                      "subtopic_name": "Parts of Speech",
+                      "question_count": 18,
+                      "by_difficulty": { "easy": 7, "medium": 8, "hard": 3 },
+                      "by_bloom": {
+                        "remember": 5,
+                        "understand": 6,
+                        "apply": 4,
+                        "analyze": 2,
+                        "evaluate": 1,
+                        "create": 0,
+                        "unknown": 0
+                      }
+                    },
+                    {
+                      "subtopic_id": 402,
+                      "subtopic_name": "Sentence Correction",
+                      "question_count": 17,
+                      "by_difficulty": { "easy": 5, "medium": 9, "hard": 3 },
+                      "by_bloom": {
+                        "remember": 3,
+                        "understand": 6,
+                        "apply": 5,
+                        "analyze": 2,
+                        "evaluate": 0,
+                        "create": 0,
+                        "unknown": 1
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

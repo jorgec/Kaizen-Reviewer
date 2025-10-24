@@ -107,7 +107,6 @@
 
 	// ---------- Standard Actions (unchanged) ----------
 	async function startPrompt() {
-		console.log(user);
 		const discipline_name = " for " + user.currentDiscipline.discipline_name;
 		try {
 			const { data, error } = await supabase.rpc('rpc_generate_prompt_assessment', {
@@ -328,6 +327,10 @@
 		}
 	});
 </script>
+<svelte:head>
+	<title>Kaizen :: Transform your learning journey with the philosophy of continuous improvement</title>
+	<meta name="description" content="Transform your learning journey with the philosophy of continuous improvement" />
+</svelte:head>
 
 <section class="section">
 	<div class="container py-0">

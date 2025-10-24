@@ -240,6 +240,10 @@
 									<div class="user-email">Org: {user.orgs[0].org_name}</div>
 								</div>
 								<hr class="dropdown-divider" />
+								<a href="/about/question_bank_info" class="dropdown-item">
+									Question Bank Info
+								</a>
+								<hr class="dropdown-divider" />
 								<button class="dropdown-item logout-button" on:click={logout}>
 									<span class="icon is-small">
 										<svg
