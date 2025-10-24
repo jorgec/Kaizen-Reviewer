@@ -1,6 +1,10 @@
 <script lang="ts">
 	// pure front page – no imports needed
 </script>
+<svelte:head>
+	<title>Kaizen :: Continuous Improvement Platform</title>
+
+</svelte:head>
 
 <div class="fullscreen">
 	<div class="overlay"></div>
