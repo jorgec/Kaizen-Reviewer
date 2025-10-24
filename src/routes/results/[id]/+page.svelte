@@ -75,6 +75,10 @@
 		return '#2d6a4f';
 	}
 </script>
+<svelte:head>
+	<title>Result :: Kaizen</title>
+
+</svelte:head>
 
 <div class="results-container">
 	{#if loading}

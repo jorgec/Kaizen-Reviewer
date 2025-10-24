@@ -53,6 +53,10 @@
 		}
 	}
 </script>
+<svelte:head>
+	<title>Prompt :: Kaizen</title>
+
+</svelte:head>
 
 <div class="prompt-container">
 	{#if loading}

@@ -73,6 +73,10 @@
 		}
 	}
 </script>
+<svelte:head>
+	<title>Assessment :: Kaizen</title>
+
+</svelte:head>
 
 <div class="assessment-container">
 	{#if loading}

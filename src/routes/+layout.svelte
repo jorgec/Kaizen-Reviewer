@@ -394,6 +394,23 @@
 	<slot />
 </main>
 
+<footer class="disclaimer-footer">
+	<div class="disclaimer-content">
+		<div class="disclaimer-icon">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="12" cy="12" r="10"></circle>
+				<line x1="12" y1="8" x2="12" y2="12"></line>
+				<line x1="12" y1="16" x2="12.01" y2="16"></line>
+			</svg>
+		</div>
+		<div class="disclaimer-text">
+			<strong>Closed Alpha:</strong> This site is currently in closed alpha testing. Some features may contain bugs or errors.
+			If you encounter any issues with the system or find errors in questions/answers, please
+			<a href="https://forms.gle/hX1NFUD6V5n75Ba59" target="_blank" rel="noopener noreferrer" class="report-link">submit a report</a>.
+		</div>
+	</div>
+</footer>
+
 <style>
 	/* Modern Navbar */
 	.navbar {
@@ -793,6 +810,76 @@
 		font-size: 0.85rem;
 		color: #aaa;
 		text-align: center;
+	}
+
+	/* Disclaimer Footer */
+	.disclaimer-footer {
+		background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1));
+		border-top: 1px solid rgba(168, 85, 247, 0.2);
+		padding: 1.25rem 2rem;
+		margin-top: 3rem;
+	}
+
+	.disclaimer-content {
+		max-width: 1200px;
+		margin: 0 auto;
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.disclaimer-icon {
+		flex-shrink: 0;
+		color: #a855f7;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 2px;
+	}
+
+	.disclaimer-text {
+		font-family: 'Inter', sans-serif;
+		font-size: 0.875rem;
+		line-height: 1.6;
+		color: #4b5563;
+	}
+
+	.disclaimer-text strong {
+		color: #7c3aed;
+		font-weight: 600;
+	}
+
+	.report-link {
+		color: #6366f1;
+		text-decoration: none;
+		font-weight: 500;
+		border-bottom: 1px solid transparent;
+		transition: all 0.2s ease;
+	}
+
+	.report-link:hover {
+		color: #a855f7;
+		border-bottom-color: #a855f7;
+	}
+
+	@media (max-width: 768px) {
+		.disclaimer-footer {
+			padding: 1rem 1.25rem;
+			margin-top: 2rem;
+		}
+
+		.disclaimer-content {
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		.disclaimer-icon {
+			margin-top: 0;
+		}
+
+		.disclaimer-text {
+			font-size: 0.8125rem;
+		}
 	}
 </style>
 
