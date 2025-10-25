@@ -1,6 +1,8 @@
 <script lang="ts">
 	import '$lib/styles/app.css';
+	import { supabase } from '$lib/supabaseClient';
 	import { userStore } from '$lib/stores/userStore';
+	import { notebookStore } from '$lib/stores/notebookStore';
 	import { onMount, onDestroy } from 'svelte';
 
 	let user: any = null;
@@ -9,12 +11,16 @@
 	let scrolled = false;
 	let drawerOpen = false;
 	let userMenuOpen = false;
+	let notebookData: any = { notebook_id: null, counts: { pending_flags: 0, active_notes: 0, due_today: 0 } };
 
-	const unsubscribe = userStore.subscribe((value) => {
+	const unsubscribeUser = userStore.subscribe((value) => {
 		user = value;
 		selectedDisciplineId = user?.currentDiscipline?.discipline_id ?? null;
 		selectedOrgId = user?.currentOrg?.org_id ?? null;
+	});
 
+	const unsubscribeNotebook = notebookStore.subscribe((value) => {
+		notebookData = value;
 	});
 
 	onMount(() => {
@@ -33,6 +39,11 @@
 
 				if (user && !user.currentOrg && user.orgs?.length) {
 					userStore.ensureCurrentOrg();
+				}
+
+				// Load notebook counts when user is available
+				if (user?.user_id && user?.currentOrg?.org_id) {
+					notebookStore.refresh(user.user_id, user.currentOrg.org_id);
 				}
 			});
 
@@ -62,7 +73,8 @@
 	}
 
 	onDestroy(() => {
-		unsubscribe();
+		unsubscribeUser();
+		unsubscribeNotebook();
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('scroll', handleScroll);
 			document.removeEventListener('click', handleClickOutside);
@@ -82,6 +94,7 @@
 			orgs: [],
 			roles: []
 		});
+		notebookStore.reset();
 		closeDrawer();
 		if (typeof window !== 'undefined') {
 			localStorage.removeItem('user');
@@ -114,6 +127,19 @@
 
 	$: selectedDisciplineId = user?.currentDiscipline?.discipline_id ?? null;
 	$: selectedOrgId = user?.currentOrg?.org_id ?? null;
+
+	// Computed badge properties based on priority
+	$: badgeConfig = (() => {
+		const counts = notebookData?.counts || { pending_flags: 0, active_notes: 0, due_today: 0 };
+		if (counts.due_today > 0) {
+			return { count: counts.due_today, color: 'red', show: true };
+		} else if (counts.active_notes > 0) {
+			return { count: counts.active_notes, color: 'amber', show: true };
+		} else if (counts.pending_flags > 0) {
+			return { count: counts.pending_flags, color: 'green', show: true };
+		}
+		return { count: 0, color: '', show: false };
+	})();
 </script>
 
 <nav
@@ -173,6 +199,30 @@
 
 				<!-- Desktop menu visible on large screens -->
 				<div class="desktop-menu">
+					<!-- Notebook/Notes Button with Badge -->
+					<a href="/notes" class="notebook-button" title="My Notebook">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M9 18h6" />
+							<path d="M10 22h4" />
+							<path d="M12 2a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" />
+						</svg>
+						{#if badgeConfig.show}
+							<span class="notebook-badge" data-color={badgeConfig.color}>
+								{badgeConfig.count}
+							</span>
+						{/if}
+					</a>
+
 					{#if user?.orgs && user.orgs.length > 1}
 						<div class="nav-select-wrapper">
 							<select
@@ -506,6 +556,69 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+	}
+
+	/* Notebook/Notes Button */
+	.notebook-button {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		color: #fbbf24;
+		text-decoration: none;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.notebook-button:hover {
+		background: rgba(251, 191, 36, 0.15);
+		border-color: rgba(251, 191, 36, 0.4);
+		color: #fcd34d;
+		transform: translateY(-1px);
+	}
+
+	.notebook-button svg {
+		flex-shrink: 0;
+	}
+
+	/* Notebook Badge */
+	.notebook-badge {
+		position: absolute;
+		top: -6px;
+		right: -6px;
+		min-width: 20px;
+		height: 20px;
+		padding: 0 5px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 10px;
+		font-family: 'Inter', sans-serif;
+		font-size: 0.75rem;
+		font-weight: 700;
+		line-height: 1;
+		border: 2px solid rgba(17, 24, 39, 0.95);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	}
+
+	.notebook-badge[data-color='red'] {
+		background: linear-gradient(135deg, #ef4444, #dc2626);
+		color: white;
+	}
+
+	.notebook-badge[data-color='amber'] {
+		background: linear-gradient(135deg, #f59e0b, #d97706);
+		color: white;
+	}
+
+	.notebook-badge[data-color='green'] {
+		background: linear-gradient(135deg, #10b981, #059669);
+		color: white;
 	}
 
 	/* Nav Select Dropdowns */

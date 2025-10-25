@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabaseClient';
 	import { userStore } from '$lib/stores/userStore';
+	import { notebookStore } from '$lib/stores/notebookStore';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
@@ -11,6 +12,13 @@
 	let loading = true;
 	let error = '';
 	let summary = { correct: 0, total: 0, score: 0 };
+	let flaggedItems: any[] = [];
+	let loadingFlagged = false;
+	let selectedKeepItems = new Set<number>();
+	let triageSubmitting = false;
+	let existingNotes: any[] = [];
+	let flaggedQuestionIds = new Set<number>();
+	let flaggingItemId: bigint | null = null;
 
 	userStore.subscribe((v) => (user = v));
 
@@ -40,12 +48,128 @@
 					score: Number(((correct / total) * 100).toFixed(1))
 				};
 			}
+
+			// Load flagged items and existing notes
+			await loadFlaggedItems();
+			await loadExistingNotes();
 		} catch (err: any) {
 			error = err.message || 'Failed to load assessment results.';
 		} finally {
 			loading = false;
 		}
 	});
+
+	async function loadFlaggedItems() {
+		if (!user?.user_id) return;
+
+		loadingFlagged = true;
+		try {
+			const { data, error: fetchError } = await supabase
+				.from('v_notes_flagged_enriched')
+				.select('*')
+				.eq('user_id', user.user_id)
+				.eq('assessment_instance_id', params.id)
+				.order('topic_name')
+				.order('subtopic_name')
+				.order('flagged_at');
+
+			if (fetchError) throw fetchError;
+			flaggedItems = data || [];
+			selectedKeepItems = new Set(); // Reset selection
+		} catch (err) {
+			console.error('Error loading flagged items:', err);
+		} finally {
+			loadingFlagged = false;
+		}
+	}
+
+	async function loadExistingNotes() {
+		if (!user?.user_id) return;
+
+		try {
+			const { data, error: fetchError } = await supabase.rpc('rpc_notes_list_by_instance', {
+				p_user_id: user.user_id,
+				p_instance_id: params.id
+			});
+
+			if (fetchError) throw fetchError;
+			existingNotes = data || [];
+
+			// Build a Set of question_ids that already have notes for efficient lookup
+			flaggedQuestionIds = new Set(existingNotes.map(note => note.question_id));
+		} catch (err) {
+			console.error('Error loading existing notes:', err);
+		}
+	}
+
+	async function flagItem(assessmentItemId: bigint, questionId: number) {
+		if (!user?.user_id || flaggingItemId === assessmentItemId) return;
+
+		flaggingItemId = assessmentItemId;
+		try {
+			const { error } = await supabase.rpc('rpc_notes_flag_item_by_item', {
+				p_user_id: user.user_id,
+				p_assessment_item_id: assessmentItemId
+			});
+
+			if (error) throw error;
+
+			// Refresh the notes list and notebook badge to update UI
+			await loadExistingNotes();
+			if (user?.currentOrg?.org_id) {
+				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+			}
+		} catch (err) {
+			console.error('Error flagging item:', err);
+			alert('Failed to flag item for review');
+		} finally {
+			flaggingItemId = null;
+		}
+	}
+
+	function toggleItemSelection(assessmentItemId: number) {
+		if (selectedKeepItems.has(assessmentItemId)) {
+			selectedKeepItems.delete(assessmentItemId);
+		} else {
+			selectedKeepItems.add(assessmentItemId);
+		}
+		selectedKeepItems = selectedKeepItems; // Trigger reactivity
+	}
+
+	async function submitTriage() {
+		if (!user?.user_id || triageSubmitting) return;
+
+		triageSubmitting = true;
+		try {
+			const keepIds = Array.from(selectedKeepItems);
+
+			// Get unselected item IDs
+			const wontReviewIds = flaggedItems
+				.filter(item => !selectedKeepItems.has(item.assessment_item_id))
+				.map(item => item.assessment_item_id);
+
+			const { error } = await supabase.rpc('rpc_notes_post_exam_triage', {
+				p_user_id: user.user_id,
+				p_instance_id: params.id,
+				p_keep_assessment_item_ids: keepIds,
+				p_wont_review_assessment_item_ids: wontReviewIds.length > 0 ? wontReviewIds : null,
+				p_org_id: user.currentOrg?.org_id || null
+			});
+
+			if (error) throw error;
+
+			// Success - refresh notebook counts and reload flagged items to show updated state
+			if (user?.currentOrg?.org_id) {
+				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+			}
+			await loadFlaggedItems();
+			await loadExistingNotes();
+		} catch (err: any) {
+			alert('Error saving review selections: ' + (err.message || err));
+		} finally {
+			triageSubmitting = false;
+		}
+	}
 
 	function toggleCorrect(idx: number) {
 		results[idx].showCorrect = !results[idx].showCorrect;
@@ -196,10 +320,83 @@
 					</div>
 				{/if}
 			{/if}
+		</div>
 
-			<div class="summary-footer">
-				<a href="/dashboard" class="modern-button primary">Return to Dashboard</a>
+		<!-- Flagged Items Triage Section -->
+		{#if loadingFlagged}
+			<div class="flagged-loading-card">
+				<div class="spinner-wrapper">
+					<div class="spinner-small"></div>
+				</div>
+				<p>Loading your flagged items...</p>
 			</div>
+		{:else if flaggedItems.length > 0}
+			<div class="triage-card">
+				<div class="triage-header">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M9 18h6" />
+						<path d="M10 22h4" />
+						<path d="M12 2a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" fill="currentColor" />
+					</svg>
+					<h3>Review Your Flagged Items ({flaggedItems.length})</h3>
+				</div>
+				<p class="triage-instruction">
+					Tap the questions you want to save for review. Unselected items will be removed.
+				</p>
+				<div class="flagged-list">
+					{#each flaggedItems as item}
+						<button
+							class="flagged-item"
+							class:selected={selectedKeepItems.has(item.assessment_item_id)}
+							on:click={() => toggleItemSelection(item.assessment_item_id)}
+							type="button"
+						>
+							<div class="flagged-item-header">
+								<span class="flagged-topic">{item.topic_name || 'General'}</span>
+								{#if item.subtopic_name}
+									<span class="flagged-subtopic">{item.subtopic_name}</span>
+								{/if}
+								<div class="selection-indicator">
+									{#if selectedKeepItems.has(item.assessment_item_id)}
+										<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+											<polyline points="20 6 9 17 4 12"></polyline>
+										</svg>
+									{/if}
+								</div>
+							</div>
+							<p class="flagged-stem">{item.stem || 'Question'}</p>
+							{#if item.flagged_at}
+								<span class="flagged-time">Flagged {new Date(item.flagged_at).toLocaleString()}</span>
+							{/if}
+						</button>
+					{/each}
+				</div>
+				<div class="triage-summary">
+					<p>
+						<strong>{selectedKeepItems.size}</strong> item{selectedKeepItems.size !== 1 ? 's' : ''} selected to keep
+						{#if flaggedItems.length - selectedKeepItems.size > 0}
+							• <strong>{flaggedItems.length - selectedKeepItems.size}</strong> will be removed
+						{/if}
+					</p>
+				</div>
+				<button
+					class="modern-button primary triage-submit-button"
+					on:click={submitTriage}
+					disabled={triageSubmitting}
+					type="button"
+				>
+					{#if triageSubmitting}
+						Saving...
+					{:else}
+						Save Changes
+					{/if}
+				</button>
+			</div>
+		{/if}
+
+		<!-- Return to Dashboard Button -->
+		<div class="dashboard-footer">
+			<a href="/dashboard" class="modern-button primary">Return to Dashboard</a>
 		</div>
 
 		<!-- Results List -->
@@ -291,6 +488,40 @@
 							</span>
 						{/if}
 					</div>
+
+					<!-- Flag button for unflagged items -->
+					{#if !flaggedQuestionIds.has(r.question_id)}
+						<div class="flag-action">
+							<button
+								type="button"
+								class="flag-button-inline"
+								on:click={() => flagItem(r.assessment_item_id, r.question_id)}
+								disabled={flaggingItemId === r.assessment_item_id}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M9 18h6" />
+									<path d="M10 22h4" />
+									<path d="M12 2a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" />
+								</svg>
+								{#if flaggingItemId === r.assessment_item_id}
+									<span>Flagging...</span>
+								{:else}
+									<span>Flag for Review</span>
+								{/if}
+							</button>
+						</div>
+					{:else}
+						<div class="flag-action">
+							<div class="flag-status">
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M9 18h6" />
+									<path d="M10 22h4" />
+									<path d="M12 2a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" />
+								</svg>
+								<span>Flagged for Review</span>
+							</div>
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
@@ -829,6 +1060,282 @@
         border: 1px solid #fecaca;
     }
 
+    /* Flagged Items Triage Section */
+    .flagged-loading-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2.5rem;
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        max-width: 900px;
+        margin: 0 auto 2rem;
+    }
+
+    .spinner-small {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #f3f4f6;
+        border-top-color: #8b5cf6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .triage-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .triage-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .triage-header svg {
+        color: #fbbf24;
+        flex-shrink: 0;
+    }
+
+    .triage-header h3 {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+    }
+
+    .triage-instruction {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #6b7280;
+        text-align: center;
+        margin: 0 0 1.5rem 0;
+        padding: 0.75rem 1rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .flagged-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .flagged-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .flagged-list::-webkit-scrollbar-track {
+        background: #f3f4f6;
+        border-radius: 3px;
+    }
+
+    .flagged-list::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 3px;
+    }
+
+    .flagged-list::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+
+    .flagged-item {
+        width: 100%;
+        background: #e5e7eb;
+        border: 2px solid #d1d5db;
+        border-radius: 8px;
+        padding: 1rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-align: left;
+        opacity: 0.6;
+    }
+
+    .flagged-item:hover {
+        opacity: 0.8;
+        border-color: #9ca3af;
+        box-shadow: 0 2px 8px rgba(107, 114, 128, 0.15);
+    }
+
+    .flagged-item.selected {
+        background: #fef3c7;
+        border-color: #fbbf24;
+        opacity: 1;
+        box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
+    }
+
+    .flagged-item.selected:hover {
+        background: #fef08a;
+        box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+    }
+
+    .flagged-item-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .selection-indicator {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: #10b981;
+        color: white;
+    }
+
+    .flagged-topic,
+    .flagged-subtopic {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .flagged-topic {
+        background: #fbbf24;
+        color: #78350f;
+    }
+
+    .flagged-subtopic {
+        background: #fed7aa;
+        color: #9a3412;
+    }
+
+    .flagged-stem {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #374151;
+        line-height: 1.5;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .flagged-time {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75rem;
+        color: #78350f;
+        opacity: 0.8;
+    }
+
+    .triage-summary {
+        margin: 1.5rem 0;
+        padding: 1rem;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .triage-summary p {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9375rem;
+        color: #374151;
+        margin: 0;
+    }
+
+    .triage-summary strong {
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .triage-submit-button {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .triage-submit-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .dashboard-footer {
+        max-width: 900px;
+        margin: 0 auto 2rem;
+        text-align: center;
+    }
+
+    /* Flag Action */
+    .flag-action {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .flag-button-inline {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #fbbf24;
+        background: rgba(251, 191, 36, 0.1);
+        border: 2px solid rgba(251, 191, 36, 0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .flag-button-inline:hover:not(:disabled) {
+        background: rgba(251, 191, 36, 0.2);
+        border-color: #fbbf24;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(251, 191, 36, 0.2);
+    }
+
+    .flag-button-inline:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .flag-button-inline svg {
+        flex-shrink: 0;
+    }
+
+    .flag-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+        border: 2px solid rgba(16, 185, 129, 0.3);
+        border-radius: 8px;
+    }
+
+    .flag-status svg {
+        flex-shrink: 0;
+    }
+
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
         .results-container {
@@ -876,6 +1383,35 @@
             flex-direction: column;
             align-items: flex-start;
             gap: 0.5rem;
+        }
+
+        .triage-card,
+        .flagged-loading-card {
+            padding: 1.5rem;
+        }
+
+        .triage-header h3 {
+            font-size: 1.125rem;
+        }
+
+        .flagged-list {
+            max-height: 300px;
+        }
+
+        .flagged-item {
+            padding: 0.875rem;
+        }
+
+        .flagged-stem {
+            font-size: 0.875rem;
+        }
+
+        .triage-instruction {
+            font-size: 0.875rem;
+        }
+
+        .triage-summary p {
+            font-size: 0.875rem;
         }
     }
 </style>
