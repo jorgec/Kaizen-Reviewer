@@ -13,12 +13,15 @@
 	let note: any = null;
 	let user: any;
 	let selectedRating: number | null = null;
-	let isSubmitting = false;
 	let newCommentBody = '';
 	let isAddingComment = false;
 	let editingCommentId: number | null = null;
 	let editCommentBody = '';
 	let comments: any[] = [];
+	let showSnoozeMenu = false;
+	let isSnoozing = false;
+	let isUpdatingStatus = false;
+	let isActivityExpanded = false;
 
 	userStore.subscribe((v) => (user = v));
 
@@ -86,39 +89,92 @@
 		}
 	}
 
-	async function submitReview(performance: 'again' | 'hard' | 'good' | 'easy') {
-		if (!user?.user_id || isSubmitting) return;
-
-		isSubmitting = true;
-		try {
-			// Call review RPC here when available
-			// For now, just navigate back
-			await new Promise((resolve) => setTimeout(resolve, 500));
-
-			// Update notebook badge
-			if (user?.currentOrg?.org_id) {
-				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
-			}
-
-			goto('/notes');
-		} catch (err) {
-			console.error('Error submitting review:', err);
-			alert('Failed to submit review');
-		} finally {
-			isSubmitting = false;
-		}
-	}
-
 	async function updateRating(rating: number) {
 		if (!user?.user_id || !note?.note_id) return;
 
+		const previousRating = selectedRating;
 		selectedRating = rating;
 
 		try {
-			// Call update rating RPC here when available
-			console.log('Updating rating to:', rating);
+			const { error } = await supabase.rpc('rpc_notes_set_rating', {
+				p_user_id: user.user_id,
+				p_note_id: note.note_id,
+				p_rating: rating
+			});
+
+			if (error) throw error;
+
+			// Update the note object
+			note.rating = rating;
 		} catch (err) {
 			console.error('Error updating rating:', err);
+			selectedRating = previousRating;
+			alert('Failed to update rating');
+		}
+	}
+
+	async function setStatus(newStatus: string) {
+		if (!user?.user_id || !note?.note_id || isUpdatingStatus) return;
+
+		const previousStatus = note.status;
+		isUpdatingStatus = true;
+
+		try {
+			const { error } = await supabase.rpc('rpc_notes_set_status', {
+				p_user_id: user.user_id,
+				p_note_id: note.note_id,
+				p_status: newStatus
+			});
+
+			if (error) throw error;
+
+			// Update the note object
+			note.status = newStatus;
+
+			// Refresh notebook badge counts
+			if (user?.currentOrg?.org_id) {
+				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+			}
+		} catch (err) {
+			console.error('Error updating status:', err);
+			note.status = previousStatus;
+			alert('Failed to update status');
+		} finally {
+			isUpdatingStatus = false;
+		}
+	}
+
+	async function snoozeNote(intervalText: string) {
+		if (!user?.user_id || !note?.note_id || isSnoozing) return;
+
+		isSnoozing = true;
+		showSnoozeMenu = false;
+
+		try {
+			const { data, error } = await supabase.rpc('rpc_notes_snooze', {
+				p_user_id: user.user_id,
+				p_note_id: note.note_id,
+				p_interval_text: intervalText
+			});
+
+			if (error) throw error;
+
+			// Update the note's due date
+			if (data) {
+				note.due_at = data;
+				note.snooze_count = (note.snooze_count || 0) + 1;
+				note.last_snoozed_at = new Date().toISOString();
+			}
+
+			// Refresh notebook counts
+			if (user?.currentOrg?.org_id) {
+				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+			}
+		} catch (err) {
+			console.error('Error snoozing note:', err);
+			alert('Failed to snooze note');
+		} finally {
+			isSnoozing = false;
 		}
 	}
 
@@ -272,8 +328,19 @@
 			</a>
 
 			<div class="header-meta">
-				<div class="status-badge" style="background: {getStatusColor(note.status).bg}; color: {getStatusColor(note.status).text}; border-color: {getStatusColor(note.status).border};">
-					{note.status}
+				<div class="status-selector">
+					<select
+						class="status-select"
+						value={note.status}
+						on:change={(e) => setStatus(e.currentTarget.value)}
+						disabled={isUpdatingStatus}
+						style="background: {getStatusColor(note.status).bg}; color: {getStatusColor(note.status).text}; border-color: {getStatusColor(note.status).border};"
+					>
+						<option value="open">Open</option>
+						<option value="in_review">In Review</option>
+						<option value="resolved">Resolved</option>
+						<option value="archived">Archived</option>
+					</select>
 				</div>
 				<div class="review-count">
 					<svg
@@ -575,172 +642,6 @@
 					{/if}
 				</div>
 
-				<!-- Metadata -->
-			</div>
-
-			<!-- Sidebar -->
-			<div class="detail-sidebar">
-				<!-- Rating Card -->
-				<div class="sidebar-card rating-card">
-					<h3 class="card-title">Difficulty Rating</h3>
-					<p class="card-description">Rate how difficult you find this question</p>
-					<div class="rating-selector">
-						{#each [1, 2, 3, 4, 5] as rating}
-							<button
-								type="button"
-								class="rating-star"
-								class:selected={selectedRating && rating <= selectedRating}
-								on:click={() => updateRating(rating)}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="32"
-									height="32"
-									viewBox="0 0 24 24"
-									fill={selectedRating && rating <= selectedRating ? 'currentColor' : 'none'}
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<polygon
-										points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-									></polygon>
-								</svg>
-							</button>
-						{/each}
-					</div>
-					{#if selectedRating}
-						<p class="rating-feedback">
-							{#if selectedRating === 1}
-								Very Easy
-							{:else if selectedRating === 2}
-								Easy
-							{:else if selectedRating === 3}
-								Moderate
-							{:else if selectedRating === 4}
-								Difficult
-							{:else}
-								Very Difficult
-							{/if}
-						</p>
-					{/if}
-				</div>
-
-				<!-- Review Actions -->
-				<div class="sidebar-card review-card">
-					<h3 class="card-title">How did you do?</h3>
-					<p class="card-description">Select your performance to schedule the next review</p>
-					<div class="review-buttons">
-						<button
-							type="button"
-							class="review-button again"
-							on:click={() => submitReview('again')}
-							disabled={isSubmitting}
-						>
-							<span class="button-label">Again</span>
-							<span class="button-hint">&lt;10m</span>
-						</button>
-						<button
-							type="button"
-							class="review-button hard"
-							on:click={() => submitReview('hard')}
-							disabled={isSubmitting}
-						>
-							<span class="button-label">Hard</span>
-							<span class="button-hint">3d</span>
-						</button>
-						<button
-							type="button"
-							class="review-button good"
-							on:click={() => submitReview('good')}
-							disabled={isSubmitting}
-						>
-							<span class="button-label">Good</span>
-							<span class="button-hint">7d</span>
-						</button>
-						<button
-							type="button"
-							class="review-button easy"
-							on:click={() => submitReview('easy')}
-							disabled={isSubmitting}
-						>
-							<span class="button-label">Easy</span>
-							<span class="button-hint">14d</span>
-						</button>
-					</div>
-				</div>
-
-				<!-- Schedule Info -->
-				<div class="sidebar-card schedule-card">
-					<h3 class="card-title">Schedule Info</h3>
-					<div class="schedule-info">
-						<div class="info-row">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<circle cx="12" cy="12" r="10"></circle>
-								<polyline points="12 6 12 12 16 14"></polyline>
-							</svg>
-							<div class="info-content">
-								<span class="info-label">Due Date</span>
-								<span class="info-value">{formatDate(note.due_at)}</span>
-							</div>
-						</div>
-						<div class="info-row">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-								<polyline points="22 4 12 14.01 9 11.01"></polyline>
-							</svg>
-							<div class="info-content">
-								<span class="info-label">Last Reviewed</span>
-								<span class="info-value">{formatDate(note.last_reviewed_at)}</span>
-							</div>
-						</div>
-						{#if note.last_snoozed_at}
-							<div class="info-row">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="16"
-									height="16"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<path d="M22 17v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1"></path>
-									<path d="M6 11V7a6 6 0 0 1 12 0v4"></path>
-									<path d="M2 11h20"></path>
-								</svg>
-								<div class="info-content">
-									<span class="info-label">Snoozed ({note.snooze_count}x)</span>
-									<span class="info-value">{formatDate(note.last_snoozed_at)}</span>
-								</div>
-							</div>
-						{/if}
-					</div>
-				</div>
-
 				<!-- Response History -->
 				{#if note.all_responses && note.all_responses.length > 0}
 					<div class="sidebar-card responses-card">
@@ -870,36 +771,237 @@
 						</div>
 					</div>
 				</div>
+			</div>
+
+			<!-- Sidebar -->
+			<div class="detail-sidebar">
+				<!-- Rating Card -->
+				<div class="sidebar-card rating-card">
+					<h3 class="card-title">Difficulty Rating</h3>
+					<p class="card-description">Rate how difficult you find this question</p>
+					<div class="rating-selector">
+						{#each [1, 2, 3, 4, 5] as rating}
+							<button
+								type="button"
+								class="rating-star"
+								class:selected={selectedRating && rating <= selectedRating}
+								on:click={() => updateRating(rating)}
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="32"
+									height="32"
+									viewBox="0 0 24 24"
+									fill={selectedRating && rating <= selectedRating ? 'currentColor' : 'none'}
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<polygon
+										points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+									></polygon>
+								</svg>
+							</button>
+						{/each}
+					</div>
+					{#if selectedRating}
+						<p class="rating-feedback">
+							{#if selectedRating === 1}
+								Very Easy
+							{:else if selectedRating === 2}
+								Easy
+							{:else if selectedRating === 3}
+								Moderate
+							{:else if selectedRating === 4}
+								Difficult
+							{:else}
+								Very Difficult
+							{/if}
+						</p>
+					{/if}
+				</div>
+
+				<!-- Snooze Options -->
+				<div class="sidebar-card snooze-card">
+					<h3 class="card-title">Snooze</h3>
+					<p class="card-description">Postpone this review for later</p>
+					<div class="snooze-options">
+						<button
+							type="button"
+							class="snooze-option"
+							on:click={() => snoozeNote('1 hour')}
+							disabled={isSnoozing}
+						>
+							<span>1 hour</span>
+						</button>
+						<button
+							type="button"
+							class="snooze-option"
+							on:click={() => snoozeNote('4 hours')}
+							disabled={isSnoozing}
+						>
+							<span>4 hours</span>
+						</button>
+						<button
+							type="button"
+							class="snooze-option"
+							on:click={() => snoozeNote('1 day')}
+							disabled={isSnoozing}
+						>
+							<span>1 day</span>
+						</button>
+						<button
+							type="button"
+							class="snooze-option"
+							on:click={() => snoozeNote('3 days')}
+							disabled={isSnoozing}
+						>
+							<span>3 days</span>
+						</button>
+						<button
+							type="button"
+							class="snooze-option"
+							on:click={() => snoozeNote('1 week')}
+							disabled={isSnoozing}
+						>
+							<span>1 week</span>
+						</button>
+						<button
+							type="button"
+							class="snooze-option"
+							on:click={() => snoozeNote('2 weeks')}
+							disabled={isSnoozing}
+						>
+							<span>2 weeks</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Schedule Info -->
+				<div class="sidebar-card schedule-card">
+					<h3 class="card-title">Schedule Info</h3>
+					<div class="schedule-info">
+						<div class="info-row">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<circle cx="12" cy="12" r="10"></circle>
+								<polyline points="12 6 12 12 16 14"></polyline>
+							</svg>
+							<div class="info-content">
+								<span class="info-label">Due Date</span>
+								<span class="info-value">{formatDate(note.due_at)}</span>
+							</div>
+						</div>
+						<div class="info-row">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+								<polyline points="22 4 12 14.01 9 11.01"></polyline>
+							</svg>
+							<div class="info-content">
+								<span class="info-label">Last Reviewed</span>
+								<span class="info-value">{formatDate(note.last_reviewed_at)}</span>
+							</div>
+						</div>
+						{#if note.last_snoozed_at}
+							<div class="info-row">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="16"
+									height="16"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M22 17v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1"></path>
+									<path d="M6 11V7a6 6 0 0 1 12 0v4"></path>
+									<path d="M2 11h20"></path>
+								</svg>
+								<div class="info-content">
+									<span class="info-label">Snoozed ({note.snooze_count}x)</span>
+									<span class="info-value">{formatDate(note.last_snoozed_at)}</span>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</div>
 
 				<!-- Events Timeline -->
 				{#if note.events && note.events.length > 0}
 					<div class="sidebar-card events-card">
-						<h3 class="card-title">Activity</h3>
-						<div class="events-timeline">
-							{#each note.events.slice(0, 5) as event}
-								<div class="event-item">
-									<div class="event-icon">
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											width="14"
-											height="14"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="2"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-										>
-											<path d={getEventIcon(event.event_type)}></path>
-										</svg>
-									</div>
-									<div class="event-content">
-										<span class="event-type">{event.event_type}</span>
-										<span class="event-time">{formatDate(event.occurred_at)}</span>
-									</div>
-								</div>
-							{/each}
+						<div class="collapsible-header">
+							<h3 class="card-title">Activity ({note.events.length})</h3>
+							<button
+								type="button"
+								class="collapse-toggle"
+								on:click={() => (isActivityExpanded = !isActivityExpanded)}
+								aria-expanded={isActivityExpanded}
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="16"
+									height="16"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class:rotated={isActivityExpanded}
+								>
+									<polyline points="6 9 12 15 18 9"></polyline>
+								</svg>
+							</button>
 						</div>
+						{#if isActivityExpanded}
+							<div class="events-timeline">
+								{#each note.events as event}
+									<div class="event-item">
+										<div class="event-icon">
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											>
+												<path d={getEventIcon(event.event_type)}></path>
+											</svg>
+										</div>
+										<div class="event-content">
+											<span class="event-type">{event.event_type}</span>
+											<span class="event-time">{formatDate(event.occurred_at)}</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -1042,16 +1144,43 @@
 		gap: 1rem;
 	}
 
-	.status-badge {
+	.status-selector {
+		position: relative;
+	}
+
+	.status-select {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.5rem 1rem;
+		padding: 0.5rem 2.5rem 0.5rem 1rem;
 		border-radius: 8px;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		border: 2px solid;
 		text-transform: capitalize;
+		cursor: pointer;
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 0.5rem center;
+		background-size: 16px;
+		transition: all 0.2s ease;
+	}
+
+	.status-select:hover:not(:disabled) {
+		opacity: 0.8;
+		transform: translateY(-1px);
+	}
+
+	.status-select:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.status-select option {
+		background: #ffffff;
+		color: #374151;
+		padding: 0.5rem;
 	}
 
 	.review-count {
@@ -1328,6 +1457,10 @@
 		margin: 0 0 0.5rem 0;
 	}
 
+	.collapsible-header .card-title {
+		margin: 0;
+	}
+
 	.card-description {
 		font-family: 'Inter', sans-serif;
 		font-size: 0.875rem;
@@ -1366,86 +1499,40 @@
 		margin: 1rem 0 0 0;
 	}
 
-	/* Review Card */
-	.review-buttons {
-		display: flex;
-		flex-direction: column;
+	/* Snooze Card */
+	.snooze-options {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
 		gap: 0.75rem;
 	}
 
-	.review-button {
+	.snooze-option {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		padding: 1rem 1.25rem;
-		border: 2px solid;
-		border-radius: 10px;
+		justify-content: center;
+		padding: 0.75rem;
 		font-family: 'Inter', sans-serif;
+		font-size: 0.875rem;
 		font-weight: 600;
+		background: #f3f0ff;
+		color: #a78bfa;
+		border: 2px solid #e9d5ff;
+		border-radius: 8px;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
-	.review-button:disabled {
+	.snooze-option:hover:not(:disabled) {
+		background: #e9d5ff;
+		border-color: #c4b5fd;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(167, 139, 250, 0.2);
+	}
+
+	.snooze-option:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
-	}
-
-	.button-label {
-		font-size: 1rem;
-	}
-
-	.button-hint {
-		font-size: 0.8125rem;
-		opacity: 0.7;
-	}
-
-	.review-button.again {
-		background: #fce8e8;
-		border-color: #e8a0a0;
-		color: #9c5555;
-	}
-
-	.review-button.again:hover:not(:disabled) {
-		background: #f8d0d0;
-		border-color: #e08080;
-		transform: translateX(4px);
-	}
-
-	.review-button.hard {
-		background: #fef6e8;
-		border-color: #f5d89e;
-		color: #a68950;
-	}
-
-	.review-button.hard:hover:not(:disabled) {
-		background: #fef0d0;
-		border-color: #f0c070;
-		transform: translateX(4px);
-	}
-
-	.review-button.good {
-		background: #e8f3fc;
-		border-color: #a0c8e8;
-		color: #5580a0;
-	}
-
-	.review-button.good:hover:not(:disabled) {
-		background: #d0e8f8;
-		border-color: #80b0d8;
-		transform: translateX(4px);
-	}
-
-	.review-button.easy {
-		background: #e8f5ee;
-		border-color: #a0d4b5;
-		color: #4a7c59;
-	}
-
-	.review-button.easy:hover:not(:disabled) {
-		background: #d0ede0;
-		border-color: #80c0a0;
-		transform: translateX(4px);
+		transform: none;
 	}
 
 	/* Schedule Card */
@@ -1491,6 +1578,9 @@
 	}
 
 	/* Response History */
+	.responses-card{
+			margin-top: 2rem;
+	}
 	.responses-list {
 		display: flex;
 		flex-direction: column;
@@ -1869,11 +1959,46 @@
 		margin: 0;
 	}
 
+	/* Collapsible Header */
+	.collapsible-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.collapse-toggle {
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		color: #9ca3af;
+	}
+
+	.collapse-toggle:hover {
+		background: #f3f0ff;
+		color: #a78bfa;
+	}
+
+	.collapse-toggle svg {
+		transition: transform 0.2s ease;
+	}
+
+	.collapse-toggle svg.rotated {
+		transform: rotate(180deg);
+	}
+
 	/* Events Timeline */
 	.events-timeline {
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
+		margin-top: 1rem;
 	}
 
 	.event-item {
