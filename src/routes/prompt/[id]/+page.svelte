@@ -127,7 +127,7 @@
 
 					<div class="choices-grid">
 						{#each question.choices as choice}
-							<button class="choice-button" on:click={() => submit(choice.label)}>
+							<button type="button" class="choice-button" on:click={() => submit(choice.label)}>
 								<div class="choice-label">{choice.label}</div>
 								<div class="choice-text">{choice.text}</div>
 								<div class="choice-arrow">

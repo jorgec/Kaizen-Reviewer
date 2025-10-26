@@ -43,9 +43,11 @@
 		reviewStart = Date.now();
 	});
 
-	async function loadNoteDetail() {
+	async function loadNoteDetail(showLoading = true) {
 		try {
-			loading = true;
+			if (showLoading) {
+				loading = true;
+			}
 			error = null;
 			const result = await supabase.rpc('rpc_notes_get_note_detail', {
 				p_user_id: user.user_id,
@@ -64,7 +66,9 @@
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		} finally {
-			loading = false;
+			if (showLoading) {
+				loading = false;
+			}
 		}
 	}
 
@@ -217,7 +221,7 @@
 			if (error) throw error;
 
 			// Reload note detail to get updated comments
-			await loadNoteDetail();
+			await loadNoteDetail(false);
 			newCommentBody = '';
 		} catch (err) {
 			console.error('Error adding comment:', err);
@@ -250,7 +254,7 @@
 			if (error) throw error;
 
 			// Reload note detail to get updated comments
-			await loadNoteDetail();
+			await loadNoteDetail(false);
 			editingCommentId = null;
 			editCommentBody = '';
 		} catch (err) {
@@ -273,7 +277,7 @@
 			if (error) throw error;
 
 			// Reload note detail to get updated comments
-			await loadNoteDetail();
+			await loadNoteDetail(false);
 		} catch (err) {
 			console.error('Error removing comment:', err);
 			alert('Failed to remove comment');
@@ -330,13 +334,17 @@
 
 			reviewSubmitted = true;
 
+			// Clear selection and confidence
+			selectedChoice = null;
+			confidence = null;
+
 			// Refresh notebook badge
 			if (user?.currentOrg?.org_id) {
 				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
 			}
 
 			// Reload note detail to get updated data
-			await loadNoteDetail();
+			await loadNoteDetail(false);
 		} catch (err) {
 			console.error('Error submitting review:', err);
 			alert('Failed to submit review');
@@ -610,7 +618,7 @@
 										{#if reviewResult.correct}
 											Great job! You selected the right answer.
 										{:else}
-											Review the explanation and try again next time.
+											Review the this question further and try again next time.
 										{/if}
 									</p>
 								</div>

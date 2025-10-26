@@ -117,7 +117,7 @@
 			});
 			if (error) throw error;
 			const instanceId = (data as any)?.instance_id || data;
-			goto(`/prompt/${instanceId}`);
+			goto(`/assessment/${instanceId}`);
 		} catch (err: any) {
 			alert(err.message);
 		}

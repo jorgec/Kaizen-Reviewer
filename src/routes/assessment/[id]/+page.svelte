@@ -277,6 +277,7 @@
 					<div class="choices-grid">
 						{#each currentQuestion.choices as choice}
 							<button
+								type="button"
 								class="choice-button"
 								on:click={() => selectAnswer(choice.label)}
 								disabled={submitting}

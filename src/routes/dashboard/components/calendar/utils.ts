@@ -66,6 +66,6 @@ export function getCalendarDayColor(acc: number | null): string {
 	if (acc < 0.75) return '#fb8b24';
 	if (acc < 0.8) return '#98c1d9';
 	if (acc < 0.85) return '#4b8a6f';
-	if (acc < 0.9) return '#07f6c3';
+	if (acc <= 1) return '#07f6c3';
 	return '#07f6c3';
 }
