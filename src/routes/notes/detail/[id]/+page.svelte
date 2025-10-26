@@ -23,6 +23,14 @@
 	let isUpdatingStatus = false;
 	let isActivityExpanded = false;
 
+	// Review state
+	let reviewStart: number = 0;
+	let selectedChoice: string | null = null;
+	let confidence: number | null = null;
+	let isSubmittingReview = false;
+	let reviewSubmitted = false;
+	let reviewResult: { correct: boolean; correctLabel: string } | null = null;
+
 	userStore.subscribe((v) => (user = v));
 
 	onMount(async () => {
@@ -31,6 +39,8 @@
 			return;
 		}
 		await loadNoteDetail();
+		// Start review timer
+		reviewStart = Date.now();
 	});
 
 	async function loadNoteDetail() {
@@ -269,6 +279,71 @@
 			alert('Failed to remove comment');
 		}
 	}
+
+	function selectChoice(choiceLabel: string) {
+		if (reviewSubmitted) return;
+		selectedChoice = choiceLabel;
+	}
+
+	async function submitReview() {
+		if (!user?.user_id || !note?.note_id || !selectedChoice || confidence === null || isSubmittingReview) return;
+
+		isSubmittingReview = true;
+		const reviewEnd = Date.now();
+		const timeMs = reviewEnd - reviewStart;
+
+		try {
+			// Set status to in_review
+			await setStatus('in_review');
+
+			// Get correct choice
+			const { data: correctChoiceData, error: correctError } = await supabase.rpc('rpc_get_correct_choice', {
+				p_question_id: note.question_id
+			});
+
+			if (correctError) throw correctError;
+
+			const correctLabel = correctChoiceData?.label;
+			const isCorrect = selectedChoice === correctLabel;
+
+			// Submit review
+			const { error: submitError } = await supabase.rpc('rpc_notes_review_submit', {
+				p_user_id: user.user_id,
+				p_note_id: note.note_id,
+				p_correct: isCorrect,
+				p_confidence: confidence,
+				p_time_ms: timeMs
+			});
+
+			if (submitError) throw submitError;
+
+			// If correct, set status to resolved
+			// if (isCorrect) {
+			// 	await setStatus('resolved');
+			// }
+
+			// Store result
+			reviewResult = {
+				correct: isCorrect,
+				correctLabel: correctLabel
+			};
+
+			reviewSubmitted = true;
+
+			// Refresh notebook badge
+			if (user?.currentOrg?.org_id) {
+				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+			}
+
+			// Reload note detail to get updated data
+			await loadNoteDetail();
+		} catch (err) {
+			console.error('Error submitting review:', err);
+			alert('Failed to submit review');
+		} finally {
+			isSubmittingReview = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -369,18 +444,184 @@
 						<h3 class="subsection-title">Answer Choices</h3>
 						<div class="choices-list">
 							{#each note.choices as choice}
-								<div class="choice-item">
+								<button
+									type="button"
+									class="choice-item"
+									class:selected={selectedChoice === choice.label}
+									class:correct={reviewSubmitted && reviewResult && selectedChoice === choice.label && reviewResult.correct}
+									class:incorrect={reviewSubmitted && reviewResult && selectedChoice === choice.label && !reviewResult.correct}
+									class:disabled={reviewSubmitted}
+									on:click={() => selectChoice(choice.label)}
+									disabled={reviewSubmitted}
+								>
 									<div class="choice-label">{choice.label}</div>
 									<div class="choice-text">{choice.text}</div>
-								</div>
+									{#if reviewSubmitted && reviewResult && selectedChoice === choice.label && reviewResult.correct}
+										<div class="choice-indicator correct-indicator">
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="20"
+												height="20"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="3"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											>
+												<polyline points="20 6 9 17 4 12"></polyline>
+											</svg>
+										</div>
+									{/if}
+									{#if reviewSubmitted && reviewResult && selectedChoice === choice.label && !reviewResult.correct}
+										<div class="choice-indicator incorrect-indicator">
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												width="20"
+												height="20"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="3"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											>
+												<line x1="18" y1="6" x2="6" y2="18"></line>
+												<line x1="6" y1="6" x2="18" y2="18"></line>
+											</svg>
+										</div>
+									{/if}
+								</button>
 							{/each}
 						</div>
+
+						<!-- Confidence & Submit -->
+						{#if selectedChoice && !reviewSubmitted}
+							<div class="review-submission">
+								<div class="confidence-section">
+									<h4 class="confidence-title">How confident are you?</h4>
+									<div class="confidence-selector">
+										{#each [1, 2, 3, 4, 5] as level}
+											<button
+												type="button"
+												class="confidence-button"
+												class:selected={confidence === level}
+												on:click={() => (confidence = level)}
+											>
+												{level}
+											</button>
+										{/each}
+									</div>
+									<div class="confidence-labels">
+										<span>Not Sure</span>
+										<span>Very Sure</span>
+									</div>
+								</div>
+
+								<button
+									type="button"
+									class="submit-review-button"
+									on:click={submitReview}
+									disabled={confidence === null || isSubmittingReview}
+								>
+									{#if isSubmittingReview}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="20"
+											height="20"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											class="spinner-icon"
+										>
+											<circle cx="12" cy="12" r="10"></circle>
+										</svg>
+										<span>Submitting...</span>
+									{:else}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="20"
+											height="20"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<polyline points="9 11 12 14 22 4"></polyline>
+											<path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+										</svg>
+										<span>Submit Answer</span>
+									{/if}
+								</button>
+							</div>
+						{/if}
+
+						<!-- Result Display -->
+						{#if reviewSubmitted && reviewResult}
+							<div class="review-result" class:correct={reviewResult.correct} class:incorrect={!reviewResult.correct}>
+								<div class="result-icon">
+									{#if reviewResult.correct}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="48"
+											height="48"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+											<polyline points="22 4 12 14.01 9 11.01"></polyline>
+										</svg>
+									{:else}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="48"
+											height="48"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<circle cx="12" cy="12" r="10"></circle>
+											<line x1="15" y1="9" x2="9" y2="15"></line>
+											<line x1="9" y1="9" x2="15" y2="15"></line>
+										</svg>
+									{/if}
+								</div>
+								<div class="result-content">
+									<h4 class="result-title">
+										{#if reviewResult.correct}
+											Correct!
+										{:else}
+											Incorrect
+										{/if}
+									</h4>
+									<p class="result-message">
+										{#if reviewResult.correct}
+											Great job! You selected the right answer.
+										{:else}
+											Review the explanation and try again next time.
+										{/if}
+									</p>
+								</div>
+							</div>
+						{/if}
 					</div>
 				{/if}
 
 				<!-- Explanation -->
 				{#if note.explanation}
-					<div class="explanation-section">
+					<div class="explanation-section" style="display: none;">
 						<div class="explanation-header">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -613,7 +854,7 @@
 
 				<!-- Response History -->
 				{#if note.all_responses && note.all_responses.length > 0}
-					<div class="sidebar-card responses-card">
+					<div class="sidebar-card responses-card"  style="display: none;">
 						<h3 class="card-title">Response History</h3>
 						<p class="card-description">Your past attempts at this question</p>
 						<div class="responses-list">
@@ -1312,6 +1553,7 @@
     }
 
     .choice-item {
+        position: relative;
         display: flex;
         gap: 1rem;
         padding: 1rem;
@@ -1319,11 +1561,39 @@
         border: 2px solid #e5e7eb;
         border-radius: 10px;
         transition: all 0.2s ease;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
     }
 
-    .choice-item:hover {
+    .choice-item:hover:not(.disabled) {
         border-color: #c4b5fd;
         background: #f3f0ff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(167, 139, 250, 0.15);
+    }
+
+    .choice-item.selected {
+        background: #f3f0ff;
+        border-color: #a78bfa;
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.25);
+    }
+
+    .choice-item.correct {
+        background: #e8f5ee;
+        border-color: #4a7c59;
+        border-width: 3px;
+    }
+
+    .choice-item.incorrect {
+        background: #fce8e8;
+        border-color: #9c5555;
+        border-width: 3px;
+    }
+
+    .choice-item.disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
     }
 
     .choice-label {
@@ -1346,6 +1616,195 @@
         font-size: 1rem;
         color: #374151;
         line-height: 1.6;
+        flex: 1;
+    }
+
+    .choice-indicator {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .choice-indicator.correct-indicator {
+        background: #4a7c59;
+        color: white;
+    }
+
+    .choice-indicator.incorrect-indicator {
+        background: #9c5555;
+        color: white;
+    }
+
+    /* Review Submission */
+    .review-submission {
+        margin-top: 2rem;
+        padding: 2rem;
+        background: #ffffff;
+        border: 2px solid #e9d5ff;
+        border-radius: 12px;
+    }
+
+    .confidence-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .confidence-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 1rem 0;
+        text-align: center;
+    }
+
+    .confidence-selector {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .confidence-button {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #faf9fc;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .confidence-button:hover {
+        background: #f3f0ff;
+        border-color: #c4b5fd;
+        color: #a78bfa;
+        transform: translateY(-2px);
+    }
+
+    .confidence-button.selected {
+        background: linear-gradient(135deg, #c4b5fd, #a78bfa);
+        border-color: #a78bfa;
+        color: white;
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+    }
+
+    .confidence-labels {
+        display: flex;
+        justify-content: space-between;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-weight: 500;
+        padding: 0 0.25rem;
+    }
+
+    .submit-review-button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
+    }
+
+    .submit-review-button:hover:not(:disabled) {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+        transform: translateY(-2px);
+    }
+
+    .submit-review-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Review Result */
+    .review-result {
+        margin-top: 2rem;
+        padding: 2rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        border: 3px solid;
+    }
+
+    .review-result.correct {
+        background: #e8f5ee;
+        border-color: #4a7c59;
+    }
+
+    .review-result.incorrect {
+        background: #fce8e8;
+        border-color: #9c5555;
+    }
+
+    .result-icon {
+        flex-shrink: 0;
+    }
+
+    .review-result.correct .result-icon {
+        color: #4a7c59;
+    }
+
+    .review-result.incorrect .result-icon {
+        color: #9c5555;
+    }
+
+    .result-content {
+        flex: 1;
+    }
+
+    .result-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .review-result.correct .result-title {
+        color: #4a7c59;
+    }
+
+    .review-result.incorrect .result-title {
+        color: #9c5555;
+    }
+
+    .result-message {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: #374151;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .result-message strong {
+        font-weight: 700;
+        color: #111827;
     }
 
     .explanation-section {
