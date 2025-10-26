@@ -171,31 +171,58 @@
 		<!-- Navigation on the right -->
 		<div class="navbar-right">
 			{#if user?.display_name}
-				<!-- Hamburger button visible on small screens -->
-				<button
-					class="hamburger-button"
-					aria-label="Toggle menu"
-					on:click={toggleDrawer}
-					aria-expanded={drawerOpen}
-					aria-controls="drawer-menu"
-					type="button"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
+				<!-- Mobile menu items -->
+				<div class="mobile-menu">
+					<!-- Notebook button for mobile -->
+					<a href="/notes" class="notebook-button" title="My Notebook">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M9 18h6" />
+							<path d="M10 22h4" />
+							<path d="M12 2a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" />
+						</svg>
+						{#if badgeConfig.show}
+							<span class="notebook-badge" data-color={badgeConfig.color}>
+								{badgeConfig.count}
+							</span>
+						{/if}
+					</a>
+
+					<!-- Hamburger button -->
+					<button
+						class="hamburger-button"
+						aria-label="Toggle menu"
+						on:click={toggleDrawer}
+						aria-expanded={drawerOpen}
+						aria-controls="drawer-menu"
+						type="button"
 					>
-						<line x1="3" y1="12" x2="21" y2="12"></line>
-						<line x1="3" y1="6" x2="21" y2="6"></line>
-						<line x1="3" y1="18" x2="21" y2="18"></line>
-					</svg>
-				</button>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="24"
+							height="24"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<line x1="3" y1="12" x2="21" y2="12"></line>
+							<line x1="3" y1="6" x2="21" y2="6"></line>
+							<line x1="3" y1="18" x2="21" y2="18"></line>
+						</svg>
+					</button>
+				</div>
 
 				<!-- Desktop menu visible on large screens -->
 				<div class="desktop-menu">
@@ -535,7 +562,7 @@
 
 	/* Hamburger Button */
 	.hamburger-button {
-		display: none;
+		display: flex;
 		padding: 0.5rem;
 		background: rgba(255, 255, 255, 0.08);
 		border: 1px solid rgba(255, 255, 255, 0.12);
@@ -549,6 +576,13 @@
 		background: rgba(255, 255, 255, 0.12);
 		border-color: rgba(168, 85, 247, 0.4);
 		color: #a855f7;
+	}
+
+	/* Mobile Menu */
+	.mobile-menu {
+		display: none;
+		align-items: center;
+		gap: 1rem;
 	}
 
 	/* Desktop Menu */
@@ -767,7 +801,7 @@
 			height: 20px;
 		}
 
-		.hamburger-button {
+		.mobile-menu {
 			display: flex;
 		}
 
@@ -781,6 +815,10 @@
 	}
 
 	@media (min-width: 769px) {
+		.mobile-menu {
+			display: none !important;
+		}
+
 		.drawer-menu,
 		.drawer-overlay {
 			display: none;
