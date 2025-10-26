@@ -197,7 +197,7 @@
 							</div>
 
 							<!-- Question Content -->
-							<div class="note-content">
+							<div class="note-content" on:click={() => goto(`/notes/detail/${note.note_id}`)}>
 								<!-- Topic Hierarchy -->
 								{#if note.discipline || note.subject || note.topic}
 									<div class="topic-breadcrumb">
@@ -251,7 +251,7 @@
 							</div>
 
 							<!-- Note Metadata -->
-							<div class="note-meta">
+							<div class="note-meta" on:click={() => goto(`/notes/detail/${note.note_id}`)}>
 								<div class="meta-row">
 									<div class="meta-item">
 										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -641,6 +641,7 @@
 	/* Note Content */
 	.note-content {
 		margin-bottom: 1rem;
+		cursor: pointer;
 	}
 
 	.topic-breadcrumb {
@@ -739,6 +740,7 @@
 		padding-top: 1rem;
 		border-top: 1px solid #f3f4f6;
 		margin-bottom: 1rem;
+		cursor: pointer;
 	}
 
 	.meta-row {
