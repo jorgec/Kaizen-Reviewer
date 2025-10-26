@@ -2,12 +2,14 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { userStore } from '$lib/stores/userStore';
+	import { notebookStore } from '$lib/stores/notebookStore';
 	import { goto } from '$app/navigation';
 
 	let loading = true;
 	let error: string | null = null;
 	let notes: any[] = [];
 	let user: any;
+	let snoozingNoteId: number | null = null;
 	userStore.subscribe((v) => (user = v));
 
 	async function loadSmartQueue() {
@@ -75,6 +77,35 @@
 
 	function getRatingStars(rating: number) {
 		return Array.from({ length: 5 }, (_, i) => i < rating);
+	}
+
+	async function snoozeNote(noteId: number) {
+		if (!user?.user_id || snoozingNoteId) return;
+
+		snoozingNoteId = noteId;
+
+		try {
+			const { error } = await supabase.rpc('rpc_notes_snooze', {
+				p_user_id: user.user_id,
+				p_note_id: noteId,
+				p_interval_text: '3 days'
+			});
+
+			if (error) throw error;
+
+			// Refresh notebook counts
+			if (user?.currentOrg?.org_id) {
+				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+			}
+
+			// Reload the queue to update the list
+			await loadSmartQueue();
+		} catch (err) {
+			console.error('Error snoozing note:', err);
+			alert('Failed to snooze note');
+		} finally {
+			snoozingNoteId = null;
+		}
 	}
 
 	// Group notes by bucket
@@ -302,12 +333,17 @@
 									</svg>
 									<span>Review Now</span>
 								</a>
-								<button class="action-button secondary" type="button">
+								<button
+									class="action-button secondary"
+									type="button"
+									on:click|stopPropagation={() => snoozeNote(note.note_id)}
+									disabled={snoozingNoteId === note.note_id}
+								>
 									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 										<circle cx="12" cy="12" r="10"></circle>
 										<polyline points="12 6 12 12 16 14"></polyline>
 									</svg>
-									<span>Snooze</span>
+									<span>{snoozingNoteId === note.note_id ? 'Snoozing...' : 'Snooze'}</span>
 								</button>
 							</div>
 						</div>
@@ -850,6 +886,16 @@
 	.action-button.secondary:hover {
 		background: #f9fafb;
 		border-color: #d1d5db;
+	}
+
+	.action-button:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		transform: none;
+	}
+
+	.action-button:disabled:hover {
+		transform: none;
 	}
 
 	/* Mobile Responsiveness */

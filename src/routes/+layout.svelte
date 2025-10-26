@@ -320,6 +320,19 @@
 								<a href="/about/question_bank_info" class="dropdown-item">
 									Question Bank Info
 								</a>
+								{#if user?.roles?.some((role) => role.role_id <= 2)}
+									<hr class="dropdown-divider" />
+									<a href="/analytics/item_analysis" class="dropdown-item">
+										<span class="icon is-small">
+											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+												<line x1="18" y1="20" x2="18" y2="10"></line>
+												<line x1="12" y1="20" x2="12" y2="4"></line>
+												<line x1="6" y1="20" x2="6" y2="14"></line>
+											</svg>
+										</span>
+										<span>Item Analysis</span>
+									</a>
+								{/if}
 								<hr class="dropdown-divider" />
 								<button class="dropdown-item logout-button" on:click={logout}>
 									<span class="icon is-small">
@@ -439,6 +452,18 @@
 						{/each}
 					</select>
 				</div>
+			{/if}
+
+			<hr class="dropdown-divider" />
+			<a href="/about/question_bank_info">
+				Question Bank Info
+			</a>
+
+			{#if user?.roles?.some((role) => role.role_id <= 2)}
+				<hr class="dropdown-divider" />
+				<a href="/analytics/item_analysis" class="drawer-menu-link">
+					Item Analysis
+				</a>
 			{/if}
 
 			<div class="menu-item">
@@ -961,6 +986,18 @@
 		font-size: 0.85rem;
 		color: #aaa;
 		text-align: center;
+	}
+
+	.drawer-menu-link {
+		display: block;
+		padding: 0.75rem 0;
+		color: #eee;
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+
+	.drawer-menu-link:hover {
+		color: #a855f7;
 	}
 
 	/* Disclaimer Footer */

@@ -173,17 +173,13 @@
 
 			if (error) throw error;
 
-			// Update the note's due date
-			if (data) {
-				note.due_at = data;
-				note.snooze_count = (note.snooze_count || 0) + 1;
-				note.last_snoozed_at = new Date().toISOString();
-			}
-
 			// Refresh notebook counts
 			if (user?.currentOrg?.org_id) {
 				await notebookStore.refresh(user.user_id, user.currentOrg.org_id);
 			}
+
+			// Redirect to notes queue
+			goto('/notes');
 		} catch (err) {
 			console.error('Error snoozing note:', err);
 			alert('Failed to snooze note');
