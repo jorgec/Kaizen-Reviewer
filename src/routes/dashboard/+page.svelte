@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabaseClient';
 	import { userStore } from '$lib/stores/userStore';
+	import { notebookStore } from '$lib/stores/notebookStore';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { formatHuman } from '$lib/datetime';
@@ -17,6 +18,7 @@
 
 	// --- state previously in the page (kept to mirror behavior) ---
 	let user: any;
+	let notebookData: any = { notebook_id: null, counts: { pending_flags: 0, active_notes: 0, due_today: 0 } };
 	let activeAssessments: AssessmentCard[] = [];
 	let completedAssessments: AssessmentCard[] = [];
 	let banks: any[] = [];
@@ -70,8 +72,16 @@
 	};
 
 	const unsubscribe = userStore.subscribe((v) => (user = v));
+	const unsubscribeNotebook = notebookStore.subscribe((value) => {
+		notebookData = value;
+	});
 	$: currentDiscipline = user?.currentDiscipline ?? null;
 	$: currentOrg = user?.currentOrg ?? null;
+
+	// Calculate total pending items
+	$: totalPendingItems = (notebookData?.counts?.pending_flags ?? 0) +
+	                       (notebookData?.counts?.active_notes ?? 0) +
+	                       (notebookData?.counts?.due_today ?? 0);
 
 	// dropdown menu
 	let showAnalyticsMenu = false;
@@ -326,7 +336,13 @@
 		} finally {
 			loading = false;
 		}
+
+		if (user?.user_id && user?.currentOrg?.org_id) {
+			notebookStore.refresh(user.user_id, user.currentOrg.org_id);
+		}
 	});
+
+
 </script>
 <svelte:head>
 	<title>Kaizen :: Transform your learning journey with the philosophy of continuous improvement</title>
@@ -592,6 +608,52 @@
 				</div>
 			</div>
 		</div>
+		<!-- notebook alert -->
+		{#if totalPendingItems > 15}
+			<div class="notebook-alert">
+				<div class="alert-icon">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+						<line x1="12" y1="9" x2="12" y2="13"></line>
+						<line x1="12" y1="17" x2="12.01" y2="17"></line>
+					</svg>
+				</div>
+				<div class="alert-content">
+					<h4 class="alert-title">High Volume of Pending Items</h4>
+					<p class="alert-message">
+						As Ellis (1962, 2001) argued, avoidance reinforces anxiety; progress depends on acting despite discomfort rather than postponing it.
+					</p>
+				</div>
+				<a href="/notebook" class="alert-action">
+					<span>Review Now</span>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<line x1="5" y1="12" x2="19" y2="12"></line>
+						<polyline points="12 5 19 12 12 19"></polyline>
+					</svg>
+				</a>
+			</div>
+		{/if}
+
 
 		<!-- Calendar block now uses component -->
 		{#if user?.user_id}
@@ -1148,6 +1210,111 @@
         .modern-dropdown-menu {
             left: auto;
             right: 0;
+        }
+    }
+
+    /* Notebook Alert */
+    .notebook-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.25rem;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+        border: 2px solid rgba(245, 158, 11, 0.3);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 2rem;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .alert-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(245, 158, 11, 0.15);
+        border-radius: 10px;
+        color: #f59e0b;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #92400e;
+        margin: 0 0 0.375rem 0;
+    }
+
+    .alert-message {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: #78350f;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .alert-message strong {
+        font-weight: 700;
+        color: #92400e;
+    }
+
+    .alert-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.625rem 1.125rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+
+    .alert-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        background: linear-gradient(135deg, #d97706, #b45309);
+    }
+
+    .alert-action svg {
+        transition: transform 0.2s ease;
+    }
+
+    .alert-action:hover svg {
+        transform: translateX(3px);
+    }
+
+    /* Responsive Alert */
+    @media (max-width: 768px) {
+        .notebook-alert {
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .alert-action {
+            width: 100%;
+            justify-content: center;
         }
     }
 
