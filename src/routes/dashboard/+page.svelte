@@ -13,6 +13,7 @@
 
 	import AssessmentsList from './components/assessments/AssessmentsList.svelte';
 	import type { AssessmentCard, AssessmentType } from './components/assessments/types';
+	import CalendarChart from './components/calendar_chart/CalendarChart.svelte';
 
 	// --- state previously in the page (kept to mirror behavior) ---
 	let user: any;
@@ -594,7 +595,7 @@
 
 		<!-- Calendar block now uses component -->
 		{#if user?.user_id}
-			<div class="calendar-container mt-6 mb-6">
+			<div class="calendar-container mt-2 mb-2">
 				<h3 class="title is-5 mb-3">Activity Calendar</h3>
 				<Calendar
 					loading={calendarLoading}
@@ -604,6 +605,13 @@
 				/>
 			</div>
 		{/if}
+
+		<!-- ...somewhere in your dashboard layout -->
+		<div class="metric-card">
+			<div class="metric-header">
+			</div>
+			<CalendarChart data={calendarData} />
+		</div>
 
 		<!-- Assessments list now uses component; all state+callbacks come from this page -->
 		<AssessmentsList

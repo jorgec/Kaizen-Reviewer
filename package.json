@@ -28,6 +28,7 @@
 	"dependencies": {
 		"@fortawesome/fontawesome-free": "^7.1.0",
 		"@supabase/supabase-js": "^2.75.1",
-		"bulma": "^1.0.4"
+		"bulma": "^1.0.4",
+		"chart.js": "^4.5.1"
 	}
 }
