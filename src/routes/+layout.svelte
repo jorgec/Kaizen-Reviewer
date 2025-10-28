@@ -317,12 +317,9 @@
 									<div class="user-email">Org: {user.orgs[0].org_name}</div>
 								</div>
 								<hr class="dropdown-divider" />
-								<a href="/about/question_bank_info" class="dropdown-item">
-									Question Bank Info
-								</a>
-								{#if user?.roles?.some((role) => role.role_id <= 2)}
-									<hr class="dropdown-divider" />
-									<a href="/analytics/assessment_stats" class="dropdown-item">
+
+								<hr class="dropdown-divider" />
+								<a href="/analytics/assessment_stats" class="dropdown-item">
 										<span class="icon is-small">
 											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 												<line x1="18" y1="20" x2="18" y2="10"></line>
@@ -330,7 +327,12 @@
 												<line x1="6" y1="20" x2="6" y2="14"></line>
 											</svg>
 										</span>
-										<span>My Stat Profile</span>
+									<span>My Stat Profile</span>
+								</a>
+								{#if user?.roles?.some((role) => role.role_id <= 2)}
+									<hr class="dropdown-divider" />
+									<a href="/about/question_bank_info" class="dropdown-item">
+										Question Bank Info
 									</a>
 									<hr class="dropdown-divider" />
 									<a href="/analytics/item_analysis" class="dropdown-item">
@@ -464,12 +466,13 @@
 					</select>
 				</div>
 			{/if}
+			<hr class="dropdown-divider" />
+			<a href="/analytics/assessment_stats" class="drawer-menu-link">
+				My Stat Profile
+			</a>
 
 			{#if user?.roles?.some((role) => role.role_id <= 2)}
-				<hr class="dropdown-divider" />
-				<a href="/analytics/assessment_stats" class="drawer-menu-link">
-					My Stat Profile
-				</a>
+
 				<hr class="dropdown-divider" />
 				<a href="/analytics/item_analysis" class="drawer-menu-link">
 					Item Analysis
