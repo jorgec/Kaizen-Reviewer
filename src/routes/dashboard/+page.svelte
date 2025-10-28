@@ -350,7 +350,53 @@
 </svelte:head>
 
 <section class="section">
+	<!-- notebook alert -->
+	{#if totalPendingItems > 15}
+		<div class="notebook-alert">
+			<div class="alert-icon">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+					<line x1="12" y1="9" x2="12" y2="13"></line>
+					<line x1="12" y1="17" x2="12.01" y2="17"></line>
+				</svg>
+			</div>
+			<div class="alert-content">
+				<h4 class="alert-title">High Volume of Pending Items</h4>
+				<p class="alert-message">
+					As Ellis (1962, 2001) argued, avoidance reinforces anxiety; progress depends on acting despite discomfort rather than postponing it.
+				</p>
+			</div>
+			<a href="/notebook" class="alert-action">
+				<span>Review Now</span>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<line x1="5" y1="12" x2="19" y2="12"></line>
+					<polyline points="12 5 19 12 12 19"></polyline>
+				</svg>
+			</a>
+		</div>
+	{/if}
 	<div class="container py-0">
+
 		<!-- Modern Assessment Tiles -->
 		<div class="assessment-grid mb-5">
 			<button type="button" class="assessment-tile prompt" on:click={startPrompt}>
@@ -608,52 +654,6 @@
 				</div>
 			</div>
 		</div>
-		<!-- notebook alert -->
-		{#if totalPendingItems > 15}
-			<div class="notebook-alert">
-				<div class="alert-icon">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-						<line x1="12" y1="9" x2="12" y2="13"></line>
-						<line x1="12" y1="17" x2="12.01" y2="17"></line>
-					</svg>
-				</div>
-				<div class="alert-content">
-					<h4 class="alert-title">High Volume of Pending Items</h4>
-					<p class="alert-message">
-						As Ellis (1962, 2001) argued, avoidance reinforces anxiety; progress depends on acting despite discomfort rather than postponing it.
-					</p>
-				</div>
-				<a href="/notebook" class="alert-action">
-					<span>Review Now</span>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="16"
-						height="16"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="5" y1="12" x2="19" y2="12"></line>
-						<polyline points="12 5 19 12 12 19"></polyline>
-					</svg>
-				</a>
-			</div>
-		{/if}
-
 
 		<!-- Calendar block now uses component -->
 		{#if user?.user_id}
@@ -877,7 +877,7 @@
     /* Modern Assessment Tiles */
     .assessment-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 1.5rem;
         margin-bottom: 2rem;
     }
@@ -1635,9 +1635,40 @@
             grid-template-columns: 1fr;
         }
     }
+
+    @media (min-width: 768px) {
+        .assessment-grid {
+            gap: 1.75rem;
+        }
+    }
+
+    /* Large screens: 4 columns for that premium dashboard density */
+    @media (min-width: 1200px) {
+        .assessment-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 2rem;
+        }
+    }
+
+    /* Update your previous mobile block (was 1 column) */
+    @media (max-width: 768px) {
+        .assessment-tile {
+            padding: 1.5rem;
+        }
+        .tile-icon-wrapper {
+            width: 56px;
+            height: 56px;
+        }
+        .tile-title {
+            font-size: 1.1rem;
+        }
+        .tile-description {
+            font-size: 0.85rem;
+        }
+    }
 </style>
 
 <script context="module" lang="ts">
-	// Keep CSR if you already had it; if you want SSR, remove this.
+
 	export const ssr = false;
 </script>
