@@ -627,3 +627,61 @@ tr.incorrect:hover {
 .assessment-complete {
     animation: fadeUp 0.5s ease forwards;
 }
+
+/* Aggregations */
+.aggregations-grid {
+    max-width: 1400px;
+    margin: 0 auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20%, 1fr));
+    gap: 1rem;
+}
+
+.agg-card {
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.agg-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #c4b5fd, #a78bfa);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.agg-content {
+    flex: 1;
+}
+
+.agg-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.agg-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .aggregations-grid {
+        grid-template-columns: 1fr;
+    }
+}
