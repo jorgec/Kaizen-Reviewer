@@ -21,8 +21,24 @@
 	let loadingFlagged = false;
 	let selectedKeepItems = new Set<number>();
 	let triageSubmitting = false;
+	let shuffledChoices: any[] = [];
 
 	const unsubscribe = userStore.subscribe((v) => (user = v));
+
+	// Fisher-Yates shuffle algorithm
+	function shuffleArray(array: any[]) {
+		const shuffled = [...array];
+		for (let i = shuffled.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+		}
+		return shuffled;
+	}
+
+	// Reactively shuffle choices when currentQuestion changes
+	$: if (currentQuestion?.choices) {
+		shuffledChoices = shuffleArray(currentQuestion.choices);
+	}
 
 	onMount(async () => {
 		try {
@@ -275,14 +291,13 @@
 					<h2 class="question-stem">{currentQuestion.stem}</h2>
 
 					<div class="choices-grid">
-						{#each currentQuestion.choices as choice}
+						{#each shuffledChoices as choice}
 							<button
 								type="button"
 								class="choice-button"
 								on:click={() => selectAnswer(choice.label)}
 								disabled={submitting}
 							>
-								<div class="choice-label">{choice.label}</div>
 								<div class="choice-text">{choice.text}</div>
 								<div class="choice-arrow">
 									<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -541,7 +556,7 @@
 
     .choice-button {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: 1fr auto;
         align-items: center;
         gap: 1rem;
         padding: 1.25rem 1.5rem;
@@ -564,20 +579,6 @@
     .choice-button:disabled {
         opacity: 0.6;
         cursor: not-allowed;
-    }
-
-    .choice-label {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        background: linear-gradient(135deg, #a855f7, #6366f1);
-        color: #ffffff;
-        border-radius: 8px;
-        font-size: 1rem;
-        font-weight: 700;
-        flex-shrink: 0;
     }
 
     .choice-text {
@@ -855,19 +856,12 @@
         }
 
         .choice-button {
-            grid-template-columns: auto 1fr;
             gap: 0.75rem;
             padding: 1rem;
         }
 
         .choice-arrow {
             display: none;
-        }
-
-        .choice-label {
-            width: 36px;
-            height: 36px;
-            font-size: 0.9375rem;
         }
 
         .choice-text {
